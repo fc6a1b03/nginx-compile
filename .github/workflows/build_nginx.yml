@@ -91,11 +91,11 @@ jobs:
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                      -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto' &&
-          make -j$(nproc) && cp objs/nginx /opt/nginx/nginx-${{ github.event.inputs.nginx_version }}/nginx
+          make -j$(nproc) && cp objs/nginx /opt/nginx/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}/nginx
         "
 
     - name: Upload Nginx binary to repository
       uses: actions/upload-artifact@v3
       with:
         name: nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}
-        path: /opt/nginx/nginx-${{ github.event.inputs.nginx_version }}/nginx
+        path: /opt/nginx/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}/nginx
