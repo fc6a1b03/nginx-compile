@@ -58,6 +58,8 @@ jobs:
           
           cd /opt/nginx &&
           git clone --depth 1 https://github.com/quictls/openssl.git openssl &&
+
+          cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
           cd jemalloc && ./autogen.sh && make -j$(nproc) && make install && make clean &&
           ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
@@ -70,6 +72,8 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
           cd zstd && make -j$(nproc) && make install && make clean &&
+          
+          cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/tokers/zstd-nginx-module.git ngx_zstd &&
 
           cd /opt/nginx &&
