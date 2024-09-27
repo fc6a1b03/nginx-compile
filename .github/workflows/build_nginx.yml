@@ -92,8 +92,12 @@ jobs:
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                      -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto' &&
           make -j$(nproc) && objs/./nginx -V && 
+          
+          # Create the output directory
           mkdir -p /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} &&
           cp objs/nginx /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}/nginx &&
+          # Ensure the directory exists before copying
+          mkdir -p $GITHUB_WORKSPACE/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} &&
           cp -r /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} $GITHUB_WORKSPACE/
         "
   
