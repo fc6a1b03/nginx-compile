@@ -91,7 +91,7 @@ jobs:
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                      -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto' &&
-          make -j$(nproc) && objs/./nginx -V && cp -p objs/nginx /opt/nginx/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}/
+          make -j$(nproc) && objs/./nginx -V && mkdir -p /opt/nginx/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} && cp objs/nginx /opt/nginx/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}
         "
 
     - name: Upload Nginx binary to repository
