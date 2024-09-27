@@ -55,9 +55,9 @@ jobs:
           dnf -y groupinstall 'Development Tools' &&
           dnf -y install nano wget mercurial psmisc cmake go automake gcc gcc-c++ kernel-devel git zlib zlib-devel openssl openssl-devel pcre pcre-devel perl-IPC-Cmd make tar autoconf brotli-devel &&
           dnf clean all &&
-          
+
           cd /opt/nginx &&
-          git clone --depth 1 https://github.com/quictls/openssl.git openssl &&
+          git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl &&
 
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
@@ -72,7 +72,7 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
           cd zstd && make -j$(nproc) && make install && make clean &&
-          
+
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/tokers/zstd-nginx-module.git ngx_zstd &&
 
@@ -91,11 +91,14 @@ jobs:
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                      -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto' &&
-          make -j$(nproc) && objs/./nginx -V && mkdir -p /opt/nginx/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} && cp objs/nginx /opt/nginx/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}
+          make -j$(nproc) && objs/./nginx -V && 
+          mkdir -p /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} &&
+          cp objs/nginx /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}/nginx &&
+          cp -r /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} $GITHUB_WORKSPACE/
         "
-
+  
     - name: Upload Nginx binary to repository
       uses: actions/upload-artifact@v3
       with:
         name: nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}
-        path: ${{ github.workspace }}/nginx
+        path: ${{ github.workspace }}/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}
