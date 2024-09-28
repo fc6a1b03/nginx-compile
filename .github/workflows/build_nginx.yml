@@ -94,6 +94,7 @@ jobs:
           make -j$(nproc) && objs/./nginx -V && 
           
           # Create the output directory and ensure it's correct
+          mkdir -p /opt/nginx/build/ &&
           mv objs/nginx /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} &&
           cp -r /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} $GITHUB_WORKSPACE/
         "
