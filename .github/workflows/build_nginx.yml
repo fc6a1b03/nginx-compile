@@ -93,10 +93,14 @@ jobs:
           make -j$(nproc) && objs/./nginx -V > /opt/nginx/nginx_build_info.txt && mv objs/nginx /opt/nginx/
         "
 
-    - name: Upload Nginx binary and build information to repository
+    - name: Upload Nginx binary to repository
       uses: actions/upload-artifact@v3
       with:
         name: nginx
-        path: |
-          ${{ github.workspace }}/nginx
-          ${{ github.workspace }}/nginx_build_info.txt
+        path: ${{ github.workspace }}/nginx
+
+    - name: Upload Nginx build information to repository
+      uses: actions/upload-artifact@v3
+      with:
+        name: nginx_build_info
+        path: ${{ github.workspace }}/nginx_build_info.txt
