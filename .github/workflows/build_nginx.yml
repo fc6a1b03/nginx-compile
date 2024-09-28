@@ -94,13 +94,11 @@ jobs:
           make -j$(nproc) && objs/./nginx -V && 
           
           # Create the output directory and ensure it's correct
-          mkdir -p /opt/nginx/build/ &&
-          mv objs/nginx /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} &&
-          mv /opt/nginx/build/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }} $GITHUB_WORKSPACE/
+          mkdir -p /opt/nginx/ && mv objs/nginx /opt/nginx/
         "
   
     - name: Upload Nginx binary to repository
       uses: actions/upload-artifact@v3
       with:
-        name: nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}
-        path: ${{ github.workspace }}/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}
+        name: nginx
+        path: ${{ github.workspace }}/nginx
