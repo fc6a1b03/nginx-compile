@@ -92,9 +92,7 @@ jobs:
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                      -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto' &&
           make -j$(nproc) && objs/./nginx -V && 
-          
-          # Create the output directory and ensure it's correct
-          mkdir -p /opt/nginx/ && mv objs/nginx /opt/nginx/
+          mv objs/nginx /opt/nginx/
         "
   
     - name: Upload Nginx binary to repository
