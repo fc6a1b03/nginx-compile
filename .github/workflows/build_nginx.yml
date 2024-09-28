@@ -104,5 +104,5 @@ jobs:
     - name: Upload Nginx binary to repository
       uses: actions/upload-artifact@v3
       with:
-        name: nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}
-        path: ${{ github.workspace }}/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}/nginx
+        name: nginx
+        path: ${{ github.workspace }}/nginx-${{ github.event.inputs.nginx_version }}-${{ env.SYSTEM_VERSION }}/
