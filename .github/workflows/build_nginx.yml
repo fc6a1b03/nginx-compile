@@ -58,7 +58,7 @@ jobs:
           git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl &&
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
-          cd jemalloc && ./autogen.sh && make -j$(nproc) && make install &&
+          cd jemalloc && ./autogen.sh && make -j$(nproc) && make install && make clean &&
           ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
           ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2 &&
           cd /opt/nginx &&
@@ -66,13 +66,13 @@ jobs:
           cd ngx_brotli && git submodule update --init &&
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
-          cd zstd && make -j$(nproc) && make install &&
+          cd zstd && make -j$(nproc) && make install && make clean &&
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/tokers/zstd-nginx-module.git ngx_zstd &&
           
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
-          cd pcre2 && ./autogen.sh && ./configure && make -j$(nproc) && make install &&
+          cd pcre2 && ./autogen.sh && ./configure && make -j$(nproc) && make install && make clean &&
           cd /opt/nginx &&
           wget https://nginx.org/download/nginx-${{ github.event.inputs.nginx_version }}.tar.gz &&
           tar -zxvf nginx-${{ github.event.inputs.nginx_version }}.tar.gz && cd nginx-${{ github.event.inputs.nginx_version }} &&
