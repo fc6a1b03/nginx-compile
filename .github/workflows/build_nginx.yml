@@ -6,11 +6,11 @@ on:
       ldd_version:
         description: "Specify the ldd version (e.g., 2.12, 2.17, 2.28, 2.34)"
         required: true
-        default: "2.28"
+        default: "2.34"
       nginx_version:
         description: "Specify the nginx version"
         required: true
-        default: "1.27.1"
+        default: "1.27.2"
       prefix:
         required: true
 
