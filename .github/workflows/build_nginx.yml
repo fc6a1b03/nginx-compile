@@ -43,11 +43,9 @@ jobs:
             exit 1
             ;;
         esac
-
     - name: Pull Docker image for chosen system
       run: |
         docker pull almalinux:${{ env.SYSTEM_VERSION }}
-
     - name: Run Docker container and build Nginx
       run: |
         docker run --rm -v ${{ github.workspace }}:/opt/nginx almalinux:${{ env.SYSTEM_VERSION }} /bin/bash -c "
@@ -55,20 +53,16 @@ jobs:
           dnf -y groupinstall 'Development Tools' &&
           dnf -y install nano wget mercurial psmisc cmake go automake gcc gcc-c++ kernel-devel git zlib zlib-devel openssl openssl-devel pcre pcre-devel perl-IPC-Cmd make tar autoconf brotli-devel &&
           dnf clean all &&
-
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl &&
-
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
           cd jemalloc && ./autogen.sh && make -j$(nproc) && make install && make clean &&
           ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
           ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2 &&
-
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &&
           cd ngx_brotli && git submodule update --init &&
-
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
           cd zstd && make -j$(nproc) && make install && make clean &&
@@ -78,7 +72,6 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
           cd pcre2 && ./autogen.sh && ./configure && make -j$(nproc) && make install && make clean &&
-
           cd /opt/nginx &&
           wget https://nginx.org/download/nginx-${{ github.event.inputs.nginx_version }}.tar.gz &&
           tar -zxvf nginx-${{ github.event.inputs.nginx_version }}.tar.gz && cd nginx-${{ github.event.inputs.nginx_version }} &&
@@ -92,7 +85,6 @@ jobs:
                                      -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto' &&
           make -j$(nproc) && objs/./nginx -V &> /opt/nginx/nginx_build_info.txt && mv objs/nginx /opt/nginx/
         "
-
     - name: Upload Nginx binary and build information to repository
       uses: actions/upload-artifact@v3
       with:
