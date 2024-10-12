@@ -3,10 +3,6 @@ name: Build Nginx Based on LDD Version
 on:
   workflow_dispatch:
     inputs:
-      ldd_version:
-        description: "Specify the ldd version (e.g., 2.12, 2.17, 2.28, 2.34)"
-        required: true
-        default: "2.34"
       nginx_version:
         description: "Specify the nginx version"
         required: true
@@ -23,32 +19,10 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-
-    - name: Set system version based on ldd version
-      id: set-system
-      run: |
-        case "${{ github.event.inputs.ldd_version }}" in
-          "2.12")
-            echo "SYSTEM_VERSION=6" >> $GITHUB_ENV
-            ;;
-          "2.17")
-            echo "SYSTEM_VERSION=7" >> $GITHUB_ENV
-            ;;
-          "2.28")
-            echo "SYSTEM_VERSION=8" >> $GITHUB_ENV
-            ;;
-          "2.34")
-            echo "SYSTEM_VERSION=9" >> $GITHUB_ENV
-            ;;
-          *)
-            echo "Unsupported ldd version: ${{ github.event.inputs.ldd_version }}"
-            exit 1
-            ;;
-        esac
-
+      
     - name: Pull Docker image for chosen system
       run: |
-        docker pull almalinux:${{ env.SYSTEM_VERSION }}
+        docker pull almalinux:9
 
     - name: Start Docker container
       run: |
@@ -163,7 +137,7 @@ jobs:
     - name: Upload Nginx binary and build information to repository
       uses: actions/upload-artifact@v3
       with:
-        name: nginx-linux64-${{ github.event.inputs.ldd_version }}-${{ github.event.inputs.nginx_version }}
+        name: nginx-linux64-${{ github.event.inputs.nginx_version }}
         path: |
           ${{ github.workspace }}/nginx
           ${{ github.workspace }}/nginx_build_info.txt
