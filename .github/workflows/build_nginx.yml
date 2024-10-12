@@ -142,10 +142,10 @@ jobs:
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
                       --add-module=../ngx_http_geoip2_module \
-                      --with-ld-opt='-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto' \
+                      --with-ld-opt='-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto=auto -fuse-ld=gold' \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
-                                 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto'
+                                 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto=auto'
         "
 
     - name: Build Nginx
