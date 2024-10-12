@@ -48,8 +48,8 @@ jobs:
           git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
           cd libmaxminddb && ./bootstrap && ./configure &&
           make -j$(nproc) && make install && make clean && ldconfig &&
-          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
-          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
+          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
+          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
         "
     
     - name: Clone OpenSSL repository
@@ -61,10 +61,10 @@ jobs:
         docker exec build-nginx-container bash -c "
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
-          cd jemalloc && ./autogen.sh &&
+          cd jemalloc && ./autogen.sh && ./configure &&
           make -j$(nproc) && make install && make clean &&
-          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
-          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
+          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
+          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
         "
 
     - name: Clone ngx_brotli module
