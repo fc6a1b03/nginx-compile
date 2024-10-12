@@ -107,7 +107,8 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git
+          git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git &&
+          ./configure --with-stream && make -j$(nproc) && make install && make clean
         "
 
     - name: Download and extract Nginx source
