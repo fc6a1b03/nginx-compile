@@ -35,12 +35,23 @@ jobs:
         docker exec build-nginx-container dnf -y groupinstall 'Development Tools'
         docker exec build-nginx-container dnf -y in nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git \
           zlib zlib-devel openssl bzip2 bzip2-devel openssl-devel pcre pcre-devel perl-IPC-Cmd make tar autoconf \
-          brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libmaxminddb libmaxminddb-devel
+          brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool
 
     - name: Clean DNF cache
       run: |
         docker exec build-nginx-container dnf clean all
 
+    - name: Clone and build libmaxminddb
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx &&
+          git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
+          cd libmaxminddb && ./configure.sh &&
+          make -j$(nproc) && make check && make install && make clean && ldconfig &&
+          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
+          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
+        "
+    
     - name: Clone OpenSSL repository
       run: |
         docker exec build-nginx-container bash -c "cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl"
