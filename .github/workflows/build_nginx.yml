@@ -74,7 +74,9 @@ jobs:
           git clone https://github.com/besser82/libxcrypt.git &&
           cd libxcrypt && ./autogen.sh &&
           ./configure --prefix=/usr/local/libxcrypt --enable-static &&
-          make -j$(nproc) && make install
+          make -j$(nproc) && make install &&
+          ln -s /usr/local/lib/libcrypt.so.1 /usr/lib/libcrypt.so.1 &&
+          ln -s /usr/local/lib/libcrypt.so.1 /usr/lib64/libcrypt.so.1
         "
 
     - name: Clone OpenSSL repository
