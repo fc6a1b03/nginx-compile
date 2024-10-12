@@ -62,6 +62,10 @@ jobs:
           zlib zlib-devel openssl bzip2 bzip2-devel openssl-devel pcre pcre-devel perl-IPC-Cmd make tar autoconf \
           brotli-devel glibc-headers glibc-devel libbsd-devel perl-core
 
+    - name: Verify Perl Installation
+      run: |
+        docker exec build-nginx-container perl -e "use FindBin;"
+
     - name: Clean DNF cache
       run: |
         docker exec build-nginx-container dnf clean all
