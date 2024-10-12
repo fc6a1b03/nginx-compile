@@ -123,6 +123,7 @@ jobs:
         docker exec build-nginx-container bash -c "
           cd /opt/nginx/nginx-${{ github.event.inputs.nginx_version }} &&
           ./configure --prefix=${{ github.event.inputs.prefix }} \
+                      --with-compat \
                       --with-threads \
                       --with-file-aio \
                       --with-http_v2_module \
@@ -141,7 +142,7 @@ jobs:
                       --with-openssl=../openssl \
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
-                      --add-module=../ngx_http_geoip2_module \
+                      --add-dynamic-module=../ngx_http_geoip2_module \
                       --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
@@ -154,7 +155,8 @@ jobs:
           cd /opt/nginx/nginx-${{ github.event.inputs.nginx_version }} &&
           make -j$(nproc) &&
           objs/nginx -V &> /opt/nginx/nginx_build_info.txt &&
-          mv objs/nginx /opt/nginx/
+          mv objs/nginx /opt/nginx/ &&
+          mv objs/ngx_http_geoip2_module.so /opt/nginx/
         "
 
     - name: Stop and remove Docker container
@@ -169,3 +171,4 @@ jobs:
         path: |
           ${{ github.workspace }}/nginx
           ${{ github.workspace }}/nginx_build_info.txt
+          ${{ github.workspace }}/ngx_http_geoip2_module.so
