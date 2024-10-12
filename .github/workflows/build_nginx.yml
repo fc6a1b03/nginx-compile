@@ -47,14 +47,17 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
           cd libmaxminddb && ./bootstrap && ./configure &&
-          make -j$(nproc) && make install && make clean && ldconfig &&
+          make -j$(nproc) && make install && make clean &&
           ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
-          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
+          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2 &&
+          ldconfig
         "
     
     - name: Clone OpenSSL repository
       run: |
-        docker exec build-nginx-container bash -c "cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl"
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl
+        "
 
     - name: Clone and build jemalloc
       run: |
@@ -64,12 +67,16 @@ jobs:
           cd jemalloc && ./autogen.sh && ./configure &&
           make -j$(nproc) && make install && make clean &&
           ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
-          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
+          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2 &&
+          ldconfig
         "
 
     - name: Clone ngx_brotli module
       run: |
-        docker exec build-nginx-container bash -c "cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli && cd ngx_brotli && git submodule update --init"
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli && 
+          cd ngx_brotli && git submodule update --init
+        "
 
     - name: Clone and build zstd
       run: |
@@ -82,7 +89,9 @@ jobs:
 
     - name: Clone ngx_zstd module
       run: |
-        docker exec build-nginx-container bash -c "cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/tokers/zstd-nginx-module.git ngx_zstd"
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/tokers/zstd-nginx-module.git ngx_zstd
+        "
 
     - name: Clone and build PCRE2
       run: |
