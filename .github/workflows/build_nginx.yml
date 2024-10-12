@@ -1,4 +1,4 @@
-name: Build Nginx Based on LDD Version
+name: Build Nginx Based
 
 on:
   workflow_dispatch:
