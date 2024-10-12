@@ -26,7 +26,7 @@ jobs:
 
     - name: Start Docker container
       run: |
-        docker run -d --name build-nginx-container -v ${{ github.workspace }}:/opt/nginx almalinux:${{ env.SYSTEM_VERSION }} tail -f /dev/null
+        docker run -d --name build-nginx-container -v ${{ github.workspace }}:/opt/nginx almalinux:9 tail -f /dev/null
 
     - name: Update system and install base dependencies
       run: |
