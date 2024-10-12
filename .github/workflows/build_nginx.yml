@@ -35,7 +35,7 @@ jobs:
         docker exec build-nginx-container dnf -y groupinstall 'Development Tools'
         docker exec build-nginx-container dnf -y in nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git \
           zlib zlib-devel openssl bzip2 bzip2-devel openssl-devel pcre pcre-devel perl-IPC-Cmd make tar autoconf \
-          brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat
+          brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libmaxminddb libmaxminddb-devel
 
     - name: Clean DNF cache
       run: |
@@ -104,6 +104,7 @@ jobs:
                       --with-http_sub_module \
                       --with-http_slice_module \
                       --with-http_realip_module \
+                      --with-http_geoip_module=dynamic \
                       --with-http_degradation_module \
                       --with-http_stub_status_module \
                       --with-pcre-jit \
