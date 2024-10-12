@@ -171,7 +171,7 @@ jobs:
     - name: Upload Nginx binary and build information to repository
       uses: actions/upload-artifact@v3
       with:
-        name: nginx_artifacts
+        name: nginx-linux64-${{ github.event.inputs.ldd_version }}-${{ github.event.inputs.nginx_version }}
         path: |
           ${{ github.workspace }}/nginx
           ${{ github.workspace }}/nginx_build_info.txt
