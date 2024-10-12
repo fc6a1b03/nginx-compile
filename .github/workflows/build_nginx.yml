@@ -67,6 +67,17 @@ jobs:
       run: |
         docker exec build-nginx-container dnf clean all
 
+    - name: Clone and build libxcrypt
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx &&
+          git clone https://github.com/besser82/libxcrypt.git &&
+          cd libxcrypt && ./autogen.sh &&
+          ./configure --prefix=/usr/local/libxcrypt --enable-static &&
+          make -j$(nproc) && make install &&
+          ln -s /usr/local/libxcrypt/lib/libcrypt.so.2 /usr/lib64/libcrypt.so.2
+        "
+
     - name: Clone OpenSSL repository
       run: |
         docker exec build-nginx-container bash -c "cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl"
@@ -76,11 +87,8 @@ jobs:
         docker exec build-nginx-container bash -c "
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
-          cd jemalloc &&
-          ./autogen.sh &&
-          make -j$(nproc) &&
-          make install &&
-          make clean &&
+          cd jemalloc && ./autogen.sh &&
+          make -j$(nproc) && make install && make clean &&
           ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
           ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
         "
@@ -95,9 +103,7 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
           cd zstd &&
-          make -j$(nproc) &&
-          make install &&
-          make clean
+          make -j$(nproc) && make install && make clean
         "
 
     - name: Clone ngx_zstd module
@@ -110,11 +116,8 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
           cd pcre2 &&
-          ./autogen.sh &&
-          ./configure &&
-          make -j$(nproc) &&
-          make install &&
-          make clean
+          ./autogen.sh && ./configure &&
+          make -j$(nproc) && make install && make clean
         "
 
     - name: Download and extract Nginx source
@@ -148,7 +151,7 @@ jobs:
                       --with-openssl=../openssl \
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
-                      --with-ld-opt='-ljemalloc -Wl,-z,relro,-z,now -flto' \
+                      --with-ld-opt='-ljemalloc -L/usr/local/libxcrypt/lib -lcrypt -Wl,-z,relro,-z,now -flto' \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto'
