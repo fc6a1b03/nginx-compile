@@ -71,7 +71,7 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd /opt/nginx &&
-          git clone https://github.com/besser82/libxcrypt.git &&
+          git clone --depth 1 --recurse-submodules https://github.com/besser82/libxcrypt.git libxcrypt &&
           cd libxcrypt && ./autogen.sh &&
           make -j$(nproc) && make install && make clean &&
           ln -s /usr/local/lib/libcrypt.so.1 /usr/lib/libcrypt.so.1 &&
@@ -151,7 +151,7 @@ jobs:
                       --with-openssl=../openssl \
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
-                      --with-ld-opt='-ljemalloc -L/usr/local/libxcrypt/lib -lcrypt -Wl,-z,relro,-z,now -flto' \
+                      --with-ld-opt='-ljemalloc -llibxcrypt -lcrypt -Wl,-z,relro,-z,now -flto' \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto'
