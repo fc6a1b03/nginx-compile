@@ -32,7 +32,7 @@ jobs:
       run: |
         docker exec build-nginx-container dnf -y update
         docker exec build-nginx-container dnf -y in epel-release
-        docker exec build-nginx-container dnf -y groupinstall 'Development Tools'
+        docker exec build-nginx-container dnf -y groupinstall 'Development Tools' readline-devel
         docker exec build-nginx-container dnf -y in nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git \
           zlib zlib-devel openssl bzip2 bzip2-devel openssl-devel pcre pcre-devel perl-IPC-Cmd make tar autoconf \
           brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold
@@ -114,14 +114,10 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git LuaJIT &&
-          cd LuaJIT &&
+          git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git luajit2 &&
+          cd luajit2 &&
           make -j$(nproc) && make install && make clean &&
-          ln -sf /usr/local/lib/libluajit-5.1.so.2 /usr/lib/libluajit-5.1.so.2 &&
-          ln -sf /usr/local/lib/libluajit-5.1.so.2 /usr/lib64/libluajit-5.1.so.2 &&
-          ldconfig &&
-          export LUAJIT_LIB=/usr/local/lib &&
-          export LUAJIT_INC=/usr/local/include/luajit-2.1
+          ldconfig && luajit -v
         "
 
     - name: Clone ngx_http_lua_module
