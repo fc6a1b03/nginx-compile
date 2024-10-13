@@ -32,7 +32,7 @@ jobs:
       run: |
         docker exec build-nginx-container dnf -y update
         docker exec build-nginx-container dnf -y in epel-release
-        docker exec build-nginx-container dnf -y groupinstall 'Development Tools' readline-devel
+        docker exec build-nginx-container dnf -y groupinstall 'Development Tools'
         docker exec build-nginx-container dnf -y in nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git \
           zlib zlib-devel openssl bzip2 bzip2-devel openssl-devel pcre pcre-devel perl-IPC-Cmd make tar autoconf \
           brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold
