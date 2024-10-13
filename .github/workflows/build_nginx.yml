@@ -110,6 +110,21 @@ jobs:
           git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
         "
 
+    - name: Clone and build LuaJIT
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx &&
+          git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git LuaJIT &&
+          cd LuaJIT &&
+          make -j$(nproc) && make install && make clean
+        "
+
+    - name: Clone ngx_http_lua_module
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx && git clone --depth 1 https://github.com/openresty/lua-nginx-module.git lua-nginx-module
+        "
+
     - name: Download and extract Nginx source
       run: |
         docker exec build-nginx-container bash -c "
@@ -142,6 +157,7 @@ jobs:
                       --with-openssl=../openssl \
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
+                      --add-module=../lua-nginx-module \
                       --add-dynamic-module=../ngx_http_geoip2_module \
                       --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
