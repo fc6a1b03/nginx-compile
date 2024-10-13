@@ -114,7 +114,7 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules ttps://github.com/openresty/luajit2.git LuaJIT &&
+          git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git LuaJIT &&
           cd LuaJIT &&
           make -j$(nproc) && make install && make clean &&
           ln -sf /usr/local/lib/libluajit-5.1.so.2 /usr/lib/libluajit-5.1.so.2 &&
