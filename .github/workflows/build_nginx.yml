@@ -116,7 +116,7 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git luajit2 &&
           cd luajit2 &&
-          make -j$(nproc) && make install && make clean &&
+          make -j$(nproc) PREFIX=/usr/local/luajit && make install PREFIX=/usr/local/luajit && make clean &&
           ldconfig && luajit -v
         "
 
@@ -160,7 +160,7 @@ jobs:
                       --add-module=../ngx_brotli \
                       --add-module=../lua-nginx-module \
                       --add-dynamic-module=../ngx_http_geoip2_module \
-                      --with-ld-opt="-L/usr/local/lib -ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
+                      --with-ld-opt="-L/usr/local/luajit/lib -ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto -fuse-ld=gold'
