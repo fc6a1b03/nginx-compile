@@ -33,24 +33,14 @@ jobs:
         docker exec build-nginx-container dnf -y update
         docker exec build-nginx-container dnf -y in epel-release
         docker exec build-nginx-container dnf -y groupinstall 'Development Tools'
+        docker exec build-nginx-container dnf -y install https://extras.getpagespeed.com/release-latest.rpm
         docker exec build-nginx-container dnf -y in nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git \
           zlib zlib-devel openssl bzip2 bzip2-devel openssl-devel pcre pcre-devel perl-IPC-Cmd make tar autoconf \
-          brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold
+          brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold luajit2
 
     - name: Clean DNF cache
       run: |
         docker exec build-nginx-container dnf clean all
-
-    - name: Clone and build LuaJIT
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/LuaJIT/LuaJIT.git LuaJIT &&
-          cd LuaJIT &&
-          make -j$(nproc) && make install PREFIX=/usr && make clean &&
-          ln -sf /usr/bin/luajit /usr/bin/luajit &&
-          ldconfig && luajit -v
-        "
         
     - name: Clone ngx_http_lua_module
       run: |
@@ -162,12 +152,10 @@ jobs:
                       --add-module=../ngx_brotli \
                       --add-module=../ngx_http_lua_module \
                       --add-dynamic-module=../ngx_http_geoip2_module \
-                      --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold -L/usr/local/lib" \
+                      --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
-                      --with-cc-opt="-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
-                                     -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto -fuse-ld=gold \
-                                     -I/usr/local/include/luajit-2.1" \
-                      --with-luajit=/usr
+                      --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
+                                 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto -fuse-ld=gold'
         "
 
     - name: Build Nginx
