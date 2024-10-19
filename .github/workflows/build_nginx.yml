@@ -47,9 +47,9 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/LuaJIT/LuaJIT.git LuaJIT &&
           cd LuaJIT &&
-          make -j$(nproc) && make install && make clean &&
-          ln -sf /usr/local/bin/luajit /usr/bin/luajit &&
-          ldconfig
+          make -j$(nproc) && make install PREFIX=/usr && make clean &&
+          ln -sf /usr/bin/luajit /usr/bin/luajit &&
+          ldconfig && luajit -v
         "
         
     - name: Clone ngx_http_lua_module
@@ -166,7 +166,8 @@ jobs:
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt="-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                      -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto -fuse-ld=gold \
-                                     -I/usr/local/include/luajit-2.1"
+                                     -I/usr/local/include/luajit-2.1" \
+                      --with-luajit=/usr
         "
 
     - name: Build Nginx
