@@ -41,6 +41,24 @@ jobs:
       run: |
         docker exec build-nginx-container dnf clean all
 
+    - name: Clone and build LuaJIT
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx &&
+          git clone --depth 1 --recurse-submodules https://github.com/LuaJIT/LuaJIT.git LuaJIT &&
+          cd LuaJIT &&
+          make -j$(nproc) && make install && make clean &&
+          ln -sf /usr/local/bin/luajit /usr/bin/luajit &&
+          ldconfig
+        "
+        
+    - name: Clone ngx_http_lua_module
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx &&
+          git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git ngx_http_lua_module
+        "
+
     - name: Clone and build libmaxminddb
       run: |
         docker exec build-nginx-container bash -c "
@@ -52,7 +70,7 @@ jobs:
           ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2 &&
           ldconfig
         "
-    
+
     - name: Clone OpenSSL repository
       run: |
         docker exec build-nginx-container bash -c "
@@ -142,11 +160,13 @@ jobs:
                       --with-openssl=../openssl \
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
+                      --add-module=../ngx_http_lua_module \
                       --add-dynamic-module=../ngx_http_geoip2_module \
-                      --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
+                      --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold -L/usr/local/lib" \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
-                      --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
-                                 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto -fuse-ld=gold'
+                      --with-cc-opt="-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
+                                     -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto -fuse-ld=gold \
+                                     -I/usr/local/include/luajit-2.1"
         "
 
     - name: Build Nginx
