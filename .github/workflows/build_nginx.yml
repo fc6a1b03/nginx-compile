@@ -38,15 +38,16 @@ jobs:
 
     - name: Update system and install base dependencies and Clean DNF cache
       run: |
-        docker exec build-nginx-container dnf -y --setopt=max_parallel_downloads=10 update
-        docker exec build-nginx-container dnf -y in --setopt=max_parallel_downloads=10 epel-release
-        docker exec build-nginx-container dnf -y --setopt=max_parallel_downloads=10 groupinstall 'Development Tools'
-        docker exec build-nginx-container dnf -y in --setopt=max_parallel_downloads=10 \
-          nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf \
-          zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre pcre-devel perl-IPC-Cmd  libaio libaio-devel\
-          brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold
-        docker exec build-nginx-container dnf clean all
-
+        docker exec build-nginx-container bash -c "
+          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 \
+          --setopt=keepcache=True --disableplugin=subscription-manager update &&
+          dnf -y install epel-release nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf  \
+          zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre pcre-devel perl-IPC-Cmd libaio libaio-devel  \
+          brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold &&
+          dnf -y groupinstall 'Development Tools' &&
+          dnf clean all
+         "
+         
     - name: Clone and build libmaxminddb
       run: |
         docker exec build-nginx-container bash -c "
