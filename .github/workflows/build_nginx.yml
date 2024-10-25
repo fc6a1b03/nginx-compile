@@ -145,7 +145,7 @@ jobs:
     - name: Configure Nginx
       run: |
         docker exec build-nginx-container bash -c "
-          source ~/.bashrc &&
+          source ~/.bashrc && ldconfig &&
           cd /opt/nginx/nginx-${{ github.event.inputs.nginx_version }} &&
           ./configure --prefix=${{ github.event.inputs.prefix }} \
                       --with-compat \
@@ -177,9 +177,9 @@ jobs:
     - name: Build Nginx
       run: |
         docker exec build-nginx-container bash -c "
-          source ~/.bashrc &&
+          source ~/.bashrc && ldconfig &&
           cd /opt/nginx/nginx-${{ github.event.inputs.nginx_version }} &&
-          ldconfig && make -j$(nproc) &&
+          make -j$(nproc) &&
           objs/nginx -V &> /opt/nginx/nginx_build_info.txt &&
           mv objs/nginx /opt/nginx/ &&
           mv objs/ngx_http_geoip2_module.so /opt/nginx/
