@@ -13,5 +13,7 @@ sudo ln -s /xxx/usr/lib64/libcrypt.so.2 /usr/lib64/libcrypt.so.2
 sudo ldconfig
 ```
 
+```
 # --add-module=../ngx_devel_kit \
 # --add-module=../lua-nginx-module \
+```
