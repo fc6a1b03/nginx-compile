@@ -111,6 +111,31 @@ jobs:
           git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
         "
 
+    - name: Clone and build luajit2
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx &&
+          git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git luajit2
+          cd luajit2 &&
+          make -j$(nproc) && make install && make clean &&
+          export LUAJIT_LIB=/usr/local/lib &&
+          export LUAJIT_INC=/usr/local/include/luajit-2.1 &&
+        "
+
+    - name: Clone ngx_devel_kit
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx &&
+          git clone --depth 1 --recurse-submodules https://github.com/vision5/ngx_devel_kit.git
+        "
+
+    - name: Clone lua_nginx_module
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd /opt/nginx &&
+          git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git
+        "
+
     - name: Download and extract Nginx source
       run: |
         docker exec build-nginx-container bash -c "
