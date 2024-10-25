@@ -112,7 +112,10 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git luajit2
           cd luajit2
-          # make -j$(nproc) && make install && make clean
+          make -j$(nproc) && make install && make clean &&
+          echo 'export LUAJIT_LIB=/usr/local/lib' >> ~/.bashrc &&
+          echo 'export LUAJIT_INC=/usr/local/include/luajit-2.1' >> ~/.bashrc &&
+          luajit -v
         "
 
     - name: Clone ngx_devel_kit
@@ -140,6 +143,7 @@ jobs:
     - name: Configure Nginx
       run: |
         docker exec build-nginx-container bash -c "
+          source ~/.bashrc &&
           cd /opt/nginx/nginx-${{ github.event.inputs.nginx_version }} &&
           ./configure --prefix=${{ github.event.inputs.prefix }} \
                       --with-compat \
@@ -171,6 +175,7 @@ jobs:
     - name: Build Nginx
       run: |
         docker exec build-nginx-container bash -c "
+          source ~/.bashrc &&
           cd /opt/nginx/nginx-${{ github.event.inputs.nginx_version }} &&
           ldconfig && make -j$(nproc) &&
           objs/nginx -V &> /opt/nginx/nginx_build_info.txt &&
