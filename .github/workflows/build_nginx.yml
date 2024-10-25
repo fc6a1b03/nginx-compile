@@ -62,7 +62,9 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
           cd jemalloc && ./autogen.sh && ./configure &&
-          make -j$(nproc) && make install && make clean
+          make -j$(nproc) && make install && make clean &&
+          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
+          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
         "
 
     - name: Clone ngx_brotli module
