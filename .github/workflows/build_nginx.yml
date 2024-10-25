@@ -154,7 +154,7 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd /opt/nginx/nginx-${{ github.event.inputs.nginx_version }} &&
-          make -j$(nproc) &&
+          make clean && ldconfig && make -j$(nproc) &&
           objs/nginx -V &> /opt/nginx/nginx_build_info.txt &&
           mv objs/nginx /opt/nginx/ &&
           mv objs/ngx_http_geoip2_module.so /opt/nginx/
