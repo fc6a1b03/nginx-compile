@@ -48,10 +48,7 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
           cd libmaxminddb && ./bootstrap && ./configure &&
-          make -j$(nproc) && make install && make clean &&
-          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
-          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2 &&
-          ldconfig
+          make -j$(nproc) && make install && make clean
         "
     
     - name: Clone OpenSSL repository
