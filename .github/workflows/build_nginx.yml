@@ -20,7 +20,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Update and upgrade system
+    - name: Update and upgrade system and Clean APT cache
       run: |
         apt-get update -y
         apt-get upgrade -y
@@ -28,15 +28,12 @@ jobs:
         apt-get autoremove -y
         apt-get clean
 
-    - name: Pull Docker image for chosen system
+    - name: Pull Docker image for chosen system and Start Docker container
       run: |
         docker pull rockylinux:9
-
-    - name: Start Docker container
-      run: |
         docker run -d --name build-nginx-container -v ${{ github.workspace }}:/opt/nginx almalinux:9 tail -f /dev/null
 
-    - name: Update system and install base dependencies
+    - name: Update system and install base dependencies and Clean DNF cache
       run: |
         docker exec build-nginx-container dnf -y update
         docker exec build-nginx-container dnf -y in epel-release
@@ -44,9 +41,6 @@ jobs:
         docker exec build-nginx-container dnf -y in nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf \
           zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre pcre-devel perl-IPC-Cmd  libaio libaio-devel\
           brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold
-
-    - name: Clean DNF cache
-      run: |
         docker exec build-nginx-container dnf clean all
 
     - name: Clone and build libmaxminddb
