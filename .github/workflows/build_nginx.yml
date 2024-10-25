@@ -174,8 +174,6 @@ jobs:
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
                       --add-dynamic-module=../ngx_http_geoip2_module \
-                      # --add-module=../ngx_devel_kit \
-                      # --add-module=../lua-nginx-module \
                       --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
