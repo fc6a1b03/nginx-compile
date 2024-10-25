@@ -22,16 +22,16 @@ jobs:
 
     - name: Update and upgrade system and Clean APT cache
       run: |
-        apt-get update -y
-        apt-get upgrade -y
-        apt-get dist-upgrade -y
-        apt-get autoremove -y
-        apt-get clean
+        sudo apt-get update -y
+        sudo apt-get upgrade -y
+        sudo apt-get dist-upgrade -y
+        sudo apt-get autoremove -y
+        sudo apt-get clean
 
     - name: Pull Docker image for chosen system and Start Docker container
       run: |
-        docker pull rockylinux:9
-        docker run -d --name build-nginx-container -v ${{ github.workspace }}:/opt/nginx almalinux:9 tail -f /dev/null
+        sudo docker pull rockylinux:9
+        sudo docker run -d --name build-nginx-container -v ${{ github.workspace }}:/opt/nginx almalinux:9 tail -f /dev/null
 
     - name: Update system and install base dependencies and Clean DNF cache
       run: |
@@ -187,8 +187,8 @@ jobs:
 
     - name: Stop and remove Docker container
       run: |
-        docker stop build-nginx-container
-        docker rm build-nginx-container
+        sudo docker stop build-nginx-container
+        sudo docker rm build-nginx-container
 
     - name: Upload Nginx binary and build information to repository
       uses: actions/upload-artifact@v3
