@@ -36,7 +36,7 @@ jobs:
         docker exec build-nginx-container dnf -y in nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git \
           zlib zlib-devel openssl bzip2 bzip2-devel openssl-devel pcre pcre-devel perl-IPC-Cmd make tar autoconf \
           brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold \
-          libaio libaio-devel
+          libaio libaio-devel jemalloc jemalloc-devel
 
     - name: Clean DNF cache
       run: |
@@ -60,17 +60,17 @@ jobs:
           cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl
         "
 
-    - name: Clone and build jemalloc
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
-          cd jemalloc && ./autogen.sh && ./configure &&
-          make -j$(nproc) && make install && make clean &&
-          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
-          ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2 &&
-          ldconfig
-        "
+    # - name: Clone and build jemalloc
+    #   run: |
+    #     docker exec build-nginx-container bash -c "
+    #       cd /opt/nginx &&
+    #       git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
+    #       cd jemalloc && ./autogen.sh && ./configure &&
+    #       make -j$(nproc) && make install && make clean &&
+    #       ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
+    #       ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2 &&
+    #       ldconfig
+    #     "
 
     - name: Clone ngx_brotli module
       run: |
