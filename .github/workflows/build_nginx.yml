@@ -117,9 +117,7 @@ jobs:
           cd /opt/nginx &&
           git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git luajit2
           cd luajit2
-          # make -j$(nproc) && make install && make clean &&
-          # export LUAJIT_LIB=/usr/local/lib &&
-          # export LUAJIT_INC=/usr/local/include/luajit-2.1 &&
+          # make -j$(nproc) && make install && make clean
         "
 
     - name: Clone ngx_devel_kit
