@@ -157,16 +157,16 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd /opt/nginx &&
-          wget https://nginx.org/download/nginx-NGINX_VERSION.tar.gz &&
-          tar -zxvf nginx-NGINX_VERSION.tar.gz
+          wget https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz &&
+          tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz
         "
 
     - name: Configure Nginx
       run: |
         docker exec build-nginx-container bash -c "
           source ~/.bashrc && ldconfig &&
-          cd /opt/nginx/nginx-NGINX_VERSION &&
-          ./configure --prefix=PREFIX \
+          cd /opt/nginx/nginx-${{ env.NGINX_VERSION }} &&
+          ./configure --prefix=${{ env.PREFIX }} \
                       --with-compat \
                       --with-threads \
                       --with-file-aio \
@@ -197,7 +197,7 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           source ~/.bashrc && ldconfig &&
-          cd /opt/nginx/nginx-NGINX_VERSION &&
+          cd /opt/nginx/nginx-${{ env.NGINX_VERSION }} &&
           make -j$(nproc) &&
           objs/nginx -V &> /opt/nginx/nginx_build_info.txt &&
           mv objs/nginx /opt/nginx/ &&
@@ -213,7 +213,7 @@ jobs:
     - name: Upload Nginx binary and build information to repository
       uses: actions/upload-artifact@v3
       with:
-        name: nginx-linux64-NGINX_VERSION
+        name: nginx-linux64-${{ env.NGINX_VERSION }}
         path: |
           ${{ github.workspace }}/nginx
           ${{ github.workspace }}/nginx_build_info.txt
