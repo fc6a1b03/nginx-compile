@@ -15,32 +15,45 @@ on:
 jobs:
   build-nginx:
     runs-on: ubuntu-latest
+    env:
+      NGINX_SRC_DIR: "/opt/nginx"
+      PREFIX: ${{ github.event.inputs.prefix }}
+      DNF_CACHE: ${{ github.workspace }}/dnf_cache
+      NGINX_VERSION: ${{ github.event.inputs.nginx_version }}
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Update and upgrade system and Clean APT cache
-      run: |
-        sudo add-apt-repository -y ppa:apt-fast/stable
-        sudo apt-get update -y
-        sudo apt-get install -y apt-fast
-        sudo apt-get update -y
-        sudo apt-get upgrade -y
-        sudo apt-get dist-upgrade -y
-        sudo apt-get autoremove -y
-        sudo apt-get clean
+    # - name: Update and upgrade system and Clean APT cache
+    #   run: |
+    #     sudo add-apt-repository -y ppa:apt-fast/stable
+    #     sudo apt-get update -y
+    #     sudo apt-get install -y apt-fast
+    #     sudo apt-get update -y
+    #     sudo apt-get upgrade -y
+    #     sudo apt-get dist-upgrade -y
+    #     sudo apt-get autoremove -y
+    #     sudo apt-get clean
+
+    - name: Cache DNF dependencies
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.DNF_CACHE }}
+        key: ${{ runner.os }}-dnf-cache
+        restore-keys: |
+          ${{ runner.os }}-dnf-cache
 
     - name: Pull Docker image for chosen system and Start Docker container
       run: |
         sudo docker pull rockylinux:9
-        sudo docker run -d --name build-nginx-container -v ${{ github.workspace }}:/opt/nginx almalinux:9 tail -f /dev/null
+        sudo docker run -d --name build-nginx-container -v ${{ env.DNF_CACHE }}:/var/cache/dnf -v ${{ github.workspace }}:${{ env.NGINX_SRC_DIR }} almalinux:9 tail -f /dev/null
 
     - name: Update system and install base dependencies and Clean DNF cache
       run: |
         docker exec build-nginx-container bash -c "
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 \
-          --setopt=keepcache=True --disableplugin=subscription-manager update &&
+          dnf --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
+          dnf -y update &&
           dnf -y in epel-release &&
           dnf -y groupinstall 'Development Tools' &&
           dnf -y in nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf \
@@ -144,16 +157,16 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd /opt/nginx &&
-          wget https://nginx.org/download/nginx-${{ github.event.inputs.nginx_version }}.tar.gz &&
-          tar -zxvf nginx-${{ github.event.inputs.nginx_version }}.tar.gz
+          wget https://nginx.org/download/nginx-NGINX_VERSION.tar.gz &&
+          tar -zxvf nginx-NGINX_VERSION.tar.gz
         "
 
     - name: Configure Nginx
       run: |
         docker exec build-nginx-container bash -c "
           source ~/.bashrc && ldconfig &&
-          cd /opt/nginx/nginx-${{ github.event.inputs.nginx_version }} &&
-          ./configure --prefix=${{ github.event.inputs.prefix }} \
+          cd /opt/nginx/nginx-NGINX_VERSION &&
+          ./configure --prefix=PREFIX \
                       --with-compat \
                       --with-threads \
                       --with-file-aio \
@@ -184,7 +197,7 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           source ~/.bashrc && ldconfig &&
-          cd /opt/nginx/nginx-${{ github.event.inputs.nginx_version }} &&
+          cd /opt/nginx/nginx-NGINX_VERSION &&
           make -j$(nproc) &&
           objs/nginx -V &> /opt/nginx/nginx_build_info.txt &&
           mv objs/nginx /opt/nginx/ &&
@@ -195,11 +208,12 @@ jobs:
       run: |
         sudo docker stop build-nginx-container
         sudo docker rm build-nginx-container
+        sudo docker system prune -af --volumes
 
     - name: Upload Nginx binary and build information to repository
       uses: actions/upload-artifact@v3
       with:
-        name: nginx-linux64-${{ github.event.inputs.nginx_version }}
+        name: nginx-linux64-NGINX_VERSION
         path: |
           ${{ github.workspace }}/nginx
           ${{ github.workspace }}/nginx_build_info.txt
