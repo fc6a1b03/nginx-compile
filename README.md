@@ -1,5 +1,5 @@
 # nginx-compile
-用于构建nginx
+用于构建[nginx](https://nginx.org/en/download.html)
 
 ## 相关问题
 ```base
