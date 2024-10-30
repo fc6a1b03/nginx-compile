@@ -25,7 +25,7 @@ geoip2 GeoLite2-City.mmdb {
     $geoip2_longitude location longitude;
     $geoip2_region_name subdivisions 0 names en;
 }
-# 加载 GeoCN 数据库
+# 加载 GeoCN CN数据库
 geoip2 GeoCN.mmdb {
     auto_reload 5m;
     $geoip2_cn_province province;
@@ -36,9 +36,9 @@ geoip2 GeoCN.mmdb {
 }
 ```
 
-## 屏蔽所有非中国大陆 IP
+## 屏蔽所有非CN的IP
 ```conf
-# 检查国家代码，如果不是 CN，则拒绝访问
+# 检查国家代码，如果不是CN，则拒绝访问
 if ($geoip2_data_country_code != "CN") {
     return 403;
 }
