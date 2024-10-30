@@ -28,11 +28,11 @@ geoip2 GeoLite2-City.mmdb {
 # 加载 GeoCN CN数据库
 geoip2 GeoCN.mmdb {
     auto_reload 5m;
-    $geoip2_cn_province province;
-    $geoip2_cn_city city;
-    $geoip2_cn_district district;
     $geoip2_cn_isp isp;
+    $geoip2_cn_city city;
     $geoip2_cn_net_type net;
+    $geoip2_cn_province province;
+    $geoip2_cn_district district;
 }
 ```
 
