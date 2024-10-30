@@ -39,7 +39,7 @@ geoip2 GeoCN.mmdb {
 ## 屏蔽所有非CN的IP
 ```conf
 # 检查国家代码，如果不是CN，则拒绝访问
-if ($geoip2_data_country_code != "CN") {
+if ($geoip2_country_code != "CN") {
     return 403;
 }
 ```
