@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-nginx:
-    runs-on: rockylinux-latest
+    runs-on: ubuntu-latest
     env:
       NGINX_SRC_DIR: "/opt/nginx"
       PREFIX: ${{ github.event.inputs.prefix }}
@@ -26,91 +26,91 @@ jobs:
 
     - name: Update System and Install Dependencies
       run: |
-        sudo dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
-                 --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
-        sudo dnf -y update &&
-        sudo dnf -y in epel-release &&
-        sudo dnf -y groupinstall "Development Tools" &&
-        sudo dnf -y in nano wget cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf \
-                            zlib-devel openssl-devel pcre-devel perl-IPC-Cmd libaio-devel \
-                            brotli-devel glibc-headers glibc-devel libbsd-devel perl-core \
-                            libxcrypt-compat libtool binutils binutils-gold
+        sudo apt-get update &&
+        sudo apt-get -y upgrade &&
+        sudo apt-get -y install build-essential software-properties-common \
+                               nano wget cmake golang automake gcc g++ linux-headers-$(uname -r) \
+                               git make tar autoconf zlib1g-dev libssl-dev libpcre3-dev \
+                               libperl-dev libaio-dev libbrotli-dev libbsd-dev \
+                               libtool binutils binutils-gold libmaxminddb-dev \
+                               libluajit-dev
 
     - name: Clone and Build libmaxminddb
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        mkdir -p ${{ env.NGINX_SRC_DIR }} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git &&
         cd libmaxminddb && ./bootstrap && ./configure &&
         make -j$(nproc) && sudo make install && sudo make clean
 
     - name: Clone OpenSSL
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git
 
     - name: Clone and Build jemalloc
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git &&
         cd jemalloc && ./autogen.sh && ./configure &&
         make -j$(nproc) && sudo make install && sudo make clean &&
-        sudo ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
+        sudo ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 
     - name: Clone ngx_brotli
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git &&
         cd ngx_brotli && git submodule update --init
 
     - name: Clone and Build zstd
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git &&
         cd zstd && make -j$(nproc) && sudo make install && sudo make clean
 
     - name: Clone ngx_zstd
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/tokers/zstd-nginx-module.git
 
     - name: Clone and Build PCRE2
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git &&
         cd pcre2 && ./autogen.sh && ./configure &&
         make -j$(nproc) && sudo make install && sudo make clean
 
     - name: Clone ngx_http_geoip2_module
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git
 
     - name: Clone and Build LuaJIT2
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git &&
         cd luajit2 && make -j$(nproc) && sudo make install && sudo make clean
 
     - name: Clone ngx_devel_kit
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/vision5/ngx_devel_kit.git
 
     - name: Clone lua_nginx_module
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git
 
     - name: Download and Extract Nginx
       run: |
-        cd ${{ env.NGINX_SRC_DIR}} &&
+        cd ${{ env.NGINX_SRC_DIR }} &&
         wget https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz &&
         tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz
 
     - name: Configure Nginx
       run: |
-        cd ${{ env.NGINX_SRC_DIR}}/nginx-${{ env.NGINX_VERSION }} &&
-        sudo source ~/.bashrc && sudo ldconfig &&
+        cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
+        sudo ldconfig &&
         sudo ./configure --prefix=${{ env.PREFIX }} \
                       --with-compat \
                       --with-threads \
@@ -141,11 +141,11 @@ jobs:
       env: 
         NGINX_BUILD: ${{ env.NGINX_SRC_DIR }}/build/
       run: |
-        sudo source ~/.bashrc && sudo ldconfig &&
+        sudo ldconfig &&
         cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
         make -j$(nproc) && sudo mkdir -p ${{ env.NGINX_BUILD }}
         sudo objs/nginx -V &> ${{ env.NGINX_BUILD }}/nginx_build_info.txt &&
-        sudo mv objs/nginx ${{env. NGINX_BUILD }} &&
+        sudo mv objs/nginx ${{env.NGINX_BUILD }} &&
         sudo mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_BUILD }}
 
     - name: Upload Nginx binary and build information to repository
