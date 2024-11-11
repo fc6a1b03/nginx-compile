@@ -28,7 +28,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install docker-ce
-        sudo docker pull rockylinux:9
+        sudo docker pull -q --disable-content-trust rockylinux:9
         sudo docker run -d --name build-nginx-container -v ${{ github.workspace }}:${{ env.NGINX_SRC_DIR }} almalinux:9 tail -f /dev/null
 
     - name: Update system and install base dependencies and Clean DNF cache
