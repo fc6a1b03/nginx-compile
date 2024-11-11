@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-nginx:
-    runs-on: ubuntu-latest
+    runs-on: rockylinux-latest
     env:
       NGINX_SRC_DIR: "/opt/nginx"
       PREFIX: ${{ github.event.inputs.prefix }}
@@ -24,129 +24,94 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Pull Docker image for chosen system and Start Docker container
+    - name: Update System and Install Dependencies
       run: |
-        sudo docker pull rockylinux:9
-        sudo docker run -d --name build-nginx-container -v ${{ github.workspace }}:${{ env.NGINX_SRC_DIR }} almalinux:9 tail -f /dev/null
+        sudo dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
+                 --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
+        sudo dnf -y update &&
+        sudo dnf -y in epel-release &&
+        sudo dnf -y groupinstall "Development Tools" &&
+        sudo dnf -y in nano wget cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf \
+                            zlib-devel openssl-devel pcre-devel perl-IPC-Cmd libaio-devel \
+                            brotli-devel glibc-headers glibc-devel libbsd-devel perl-core \
+                            libxcrypt-compat libtool binutils binutils-gold
 
-    - name: Update system and install base dependencies and Clean DNF cache
+    - name: Clone and Build libmaxminddb
       run: |
-        docker exec build-nginx-container bash -c "
-          dnf --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
-          dnf -y update &&
-          dnf -y in epel-release &&
-          dnf -y groupinstall 'Development Tools' &&
-          dnf -y in nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf \
-          zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre pcre-devel perl-IPC-Cmd  libaio libaio-devel \
-          brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold &&
-          dnf clean all
-         "
-         
-    - name: Clone and build libmaxminddb
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
-          cd libmaxminddb && ./bootstrap && ./configure &&
-          make -j$(nproc) && make install && make clean
-        "
-    
-    - name: Clone OpenSSL repository
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git &&
+        cd libmaxminddb && ./bootstrap && ./configure &&
+        make -j$(nproc) && sudo make install && sudo make clean
 
-    - name: Clone and build jemalloc
+    - name: Clone OpenSSL
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
-          cd jemalloc && ./autogen.sh && ./configure &&
-          make -j$(nproc) && make install && make clean &&
-          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
-          ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git
 
-    - name: Clone ngx_brotli module
+    - name: Clone and Build jemalloc
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli && 
-          cd ngx_brotli && git submodule update --init
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git &&
+        cd jemalloc && ./autogen.sh && ./configure &&
+        make -j$(nproc) && sudo make install && sudo make clean &&
+        sudo ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
 
-    - name: Clone and build zstd
+    - name: Clone ngx_brotli
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
-          cd zstd &&
-          make -j$(nproc) && make install && make clean
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git &&
+        cd ngx_brotli && git submodule update --init
 
-    - name: Clone ngx_zstd module
+    - name: Clone and Build zstd
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx && git clone --depth 1 --recurse-submodules https://github.com/tokers/zstd-nginx-module.git ngx_zstd
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git &&
+        cd zstd && make -j$(nproc) && sudo make install && sudo make clean
 
-    - name: Clone and build PCRE2
+    - name: Clone ngx_zstd
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
-          cd pcre2 &&
-          ./autogen.sh && ./configure &&
-          make -j$(nproc) && make install && make clean
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/tokers/zstd-nginx-module.git
+
+    - name: Clone and Build PCRE2
+      run: |
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git &&
+        cd pcre2 && ./autogen.sh && ./configure &&
+        make -j$(nproc) && sudo make install && sudo make clean
 
     - name: Clone ngx_http_geoip2_module
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git
 
-    - name: Clone and build luajit2
+    - name: Clone and Build LuaJIT2
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git luajit2
-          cd luajit2
-          make -j$(nproc) && make install && make clean &&
-          echo 'export LUAJIT_LIB=/usr/local/lib' >> ~/.bashrc &&
-          echo 'export LUAJIT_INC=/usr/local/include/luajit-2.1' >> ~/.bashrc &&
-          luajit -v
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git &&
+        cd luajit2 && make -j$(nproc) && sudo make install && sudo make clean
 
     - name: Clone ngx_devel_kit
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/vision5/ngx_devel_kit.git ngx_devel_kit
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/vision5/ngx_devel_kit.git
 
     - name: Clone lua_nginx_module
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git lua-nginx-module
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git
 
-    - name: Download and extract Nginx source
+    - name: Download and Extract Nginx
       run: |
-        docker exec build-nginx-container bash -c "
-          cd /opt/nginx &&
-          wget https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz &&
-          tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz
-        "
+        cd ${{ env.NGINX_SRC_DIR}} &&
+        wget https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz &&
+        tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz
 
     - name: Configure Nginx
       run: |
-        docker exec build-nginx-container bash -c "
-          source ~/.bashrc && ldconfig &&
-          cd /opt/nginx/nginx-${{ env.NGINX_VERSION }} &&
-          ./configure --prefix=${{ env.PREFIX }} \
+        cd ${{ env.NGINX_SRC_DIR}}/nginx-${{ env.NGINX_VERSION }} &&
+        sudo source ~/.bashrc && sudo ldconfig &&
+        sudo ./configure --prefix=${{ env.PREFIX }} \
                       --with-compat \
                       --with-threads \
                       --with-file-aio \
@@ -171,33 +136,28 @@ jobs:
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto -fuse-ld=gold'
-        "
 
     - name: Build Nginx
+      env: 
+        NGINX_BUILD: ${{ NGINX_SRC_DIR }}/build/
       run: |
-        docker exec build-nginx-container bash -c "
-          source ~/.bashrc && ldconfig &&
-          cd /opt/nginx/nginx-${{ env.NGINX_VERSION }} &&
-          make -j$(nproc) &&
-          objs/nginx -V &> /opt/nginx/nginx_build_info.txt &&
-          mv objs/nginx /opt/nginx/ &&
-          mv objs/ngx_http_geoip2_module.so /opt/nginx/
-        "
-
-    - name: Stop and remove Docker container
-      run: |
-        sudo docker stop build-nginx-container
-        sudo docker rm build-nginx-container
-        sudo docker system prune -af --volumes
+        sudo source ~/.bashrc && sudo ldconfig &&
+        cd ${{ env.NGINX_SRC_DIR}}/nginx-${{ env.NGINX_VERSION }} &&
+        make -j$(nproc) && sudo mkdir -p ${{ NGINX_BUILD }}
+        sudo objs/nginx -V &> ${{ NGINX_BUILD }}/nginx_build_info.txt &&
+        sudo mv objs/nginx ${{ NGINX_BUILD }} &&
+        sudo mv objs/ngx_http_geoip2_module.so ${{ NGINX_BUILD }}
 
     - name: Upload Nginx binary and build information to repository
       uses: actions/upload-artifact@v4
+      env: 
+        NGINX_BUILD: ${{ NGINX_SRC_DIR }}/build/
       with:
         name: nginx-linux64-${{ env.NGINX_VERSION }}
         path: |
-          ${{ github.workspace }}/nginx
-          ${{ github.workspace }}/nginx_build_info.txt
-          ${{ github.workspace }}/ngx_http_geoip2_module.so
+          ${{ NGINX_BUILD }}/nginx
+          ${{ NGINX_BUILD }}/nginx_build_info.txt
+          ${{ NGINX_BUILD }}/ngx_http_geoip2_module.so
         retention-days: 2
         compression-level: 9
         if-no-files-found: error
