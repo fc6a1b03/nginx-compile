@@ -139,7 +139,7 @@ jobs:
 
     - name: Build Nginx
       env: 
-        NGINX_BUILD: ${{ NGINX_SRC_DIR }}/build/
+        NGINX_BUILD: ${{ env.NGINX_SRC_DIR }}/build/
       run: |
         sudo source ~/.bashrc && sudo ldconfig &&
         cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
@@ -151,7 +151,7 @@ jobs:
     - name: Upload Nginx binary and build information to repository
       uses: actions/upload-artifact@v4
       env: 
-        NGINX_BUILD: ${{ NGINX_SRC_DIR }}/build/
+        NGINX_BUILD: ${{ env.NGINX_SRC_DIR }}/build/
       with:
         name: nginx-linux64-${{ env.NGINX_VERSION }}
         path: |
