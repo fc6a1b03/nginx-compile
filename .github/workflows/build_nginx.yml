@@ -195,5 +195,5 @@ jobs:
           ${{ github.workspace }}/nginx_build_info.txt
           ${{ github.workspace }}/ngx_http_geoip2_module.so
         retention-days: 2
-        compression-level: 9
+        compression-level: 0
         if-no-files-found: error
