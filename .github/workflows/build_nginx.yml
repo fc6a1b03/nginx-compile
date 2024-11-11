@@ -142,11 +142,11 @@ jobs:
         NGINX_BUILD: ${{ NGINX_SRC_DIR }}/build/
       run: |
         sudo source ~/.bashrc && sudo ldconfig &&
-        cd ${{ env.NGINX_SRC_DIR}}/nginx-${{ env.NGINX_VERSION }} &&
-        make -j$(nproc) && sudo mkdir -p ${{ NGINX_BUILD }}
-        sudo objs/nginx -V &> ${{ NGINX_BUILD }}/nginx_build_info.txt &&
-        sudo mv objs/nginx ${{ NGINX_BUILD }} &&
-        sudo mv objs/ngx_http_geoip2_module.so ${{ NGINX_BUILD }}
+        cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
+        make -j$(nproc) && sudo mkdir -p ${{ env.NGINX_BUILD }}
+        sudo objs/nginx -V &> ${{ env.NGINX_BUILD }}/nginx_build_info.txt &&
+        sudo mv objs/nginx ${{env. NGINX_BUILD }} &&
+        sudo mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_BUILD }}
 
     - name: Upload Nginx binary and build information to repository
       uses: actions/upload-artifact@v4
@@ -155,9 +155,9 @@ jobs:
       with:
         name: nginx-linux64-${{ env.NGINX_VERSION }}
         path: |
-          ${{ NGINX_BUILD }}/nginx
-          ${{ NGINX_BUILD }}/nginx_build_info.txt
-          ${{ NGINX_BUILD }}/ngx_http_geoip2_module.so
+          ${{ env.NGINX_BUILD }}/nginx
+          ${{ env.NGINX_BUILD }}/nginx_build_info.txt
+          ${{ env.NGINX_BUILD }}/ngx_http_geoip2_module.so
         retention-days: 2
         compression-level: 9
         if-no-files-found: error
