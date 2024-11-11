@@ -26,6 +26,8 @@ jobs:
 
     - name: Pull Docker image for chosen system and Start Docker container
       run: |
+        sudo apt-get update
+        sudo apt-get install docker-ce
         sudo docker pull rockylinux:9
         sudo docker run -d --name build-nginx-container -v ${{ github.workspace }}:${{ env.NGINX_SRC_DIR }} almalinux:9 tail -f /dev/null
 
