@@ -26,14 +26,15 @@ jobs:
 
     - name: Pull Docker image for chosen system and Start Docker container
       run: |
-        sudo apt-get -q update
-        sudo apt-get -q install docker-ce
+        sudo apt -q update
+        sudo apt -q -y install docker-ce
         sudo docker pull -q --disable-content-trust rockylinux:9
         sudo docker run -d --name build-nginx-container -v ${{ github.workspace }}:${{ env.NGINX_SRC_DIR }} almalinux:9 tail -f /dev/null
 
     - name: Update system and install base dependencies and Clean DNF cache
       run: |
         docker exec build-nginx-container bash -c "
+          dnf clean all &&
           dnf --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True update &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True in epel-release &&
@@ -82,8 +83,7 @@ jobs:
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }} &&
           git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
-          cd zstd &&
-          make -j$(nproc) && make install
+          cd zstd && make -j$(nproc) && make install
         "
 
     - name: Clone ngx_zstd module
@@ -109,31 +109,31 @@ jobs:
           git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
         "
 
-    - name: Clone and build luajit2
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} &&
-          git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git luajit2
-          cd luajit2
-          make -j$(nproc) && make install &&
-          echo 'export LUAJIT_LIB=/usr/local/lib' >> ~/.bashrc &&
-          echo 'export LUAJIT_INC=/usr/local/include/luajit-2.1' >> ~/.bashrc &&
-          luajit -v
-        "
+    # - name: Clone and build luajit2
+    #   run: |
+    #     docker exec build-nginx-container bash -c "
+    #       cd ${{ env.NGINX_SRC_DIR }} &&
+    #       git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git luajit2
+    #       cd luajit2
+    #       make -j$(nproc) && make install &&
+    #       echo 'export LUAJIT_LIB=/usr/local/lib' >> ~/.bashrc &&
+    #       echo 'export LUAJIT_INC=/usr/local/include/luajit-2.1' >> ~/.bashrc &&
+    #       luajit -v
+    #     "
 
-    - name: Clone ngx_devel_kit
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} &&
-          git clone --depth 1 --recurse-submodules https://github.com/vision5/ngx_devel_kit.git ngx_devel_kit
-        "
+    # - name: Clone ngx_devel_kit
+    #   run: |
+    #     docker exec build-nginx-container bash -c "
+    #       cd ${{ env.NGINX_SRC_DIR }} &&
+    #       git clone --depth 1 --recurse-submodules https://github.com/vision5/ngx_devel_kit.git ngx_devel_kit
+    #     "
 
-    - name: Clone lua_nginx_module
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} &&
-          git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git lua-nginx-module
-        "
+    # - name: Clone lua_nginx_module
+    #   run: |
+    #     docker exec build-nginx-container bash -c "
+    #       cd ${{ env.NGINX_SRC_DIR }} &&
+    #       git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git lua-nginx-module
+    #     "
 
     - name: Download and extract Nginx source
       run: |
@@ -152,12 +152,14 @@ jobs:
                       --with-compat \
                       --with-threads \
                       --with-file-aio \
+                      --with-poll_module \
                       --with-http_v2_module \
                       --with-http_v3_module \
                       --with-http_ssl_module \
                       --with-http_sub_module \
                       --with-http_slice_module \
                       --with-http_realip_module \
+                      --with-http_rewrite_module \
                       --with-http_degradation_module \
                       --with-http_stub_status_module \
                       --with-pcre-jit \
@@ -170,9 +172,10 @@ jobs:
                       --add-module=../ngx_brotli \
                       --add-dynamic-module=../ngx_http_geoip2_module \
                       --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
-                      --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-tls1_3 enable-quic' \
+                      --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-asm enable-tls1_3 enable-quic' \
                       --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
-                                 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pipe -flto -fuse-ld=gold'
+                                 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -ffast-math -fomit-frame-pointer -finline-functions \
+                                 -fno-strict-aliasing -ffunction-sections -fdata-sections -Wl,--gc-sections -fPIC -pipe -flto -fuse-ld=gold'
         "
 
     - name: Build Nginx
@@ -195,5 +198,5 @@ jobs:
           ${{ github.workspace }}/nginx_build_info.txt
           ${{ github.workspace }}/ngx_http_geoip2_module.so
         retention-days: 2
-        compression-level: 0
+        compression-level: 9
         if-no-files-found: error
