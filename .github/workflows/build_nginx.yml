@@ -89,7 +89,7 @@ jobs:
     - name: Clone ngx_zstd module
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/tokers/zstd-nginx-module.git ngx_zstd
+          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
         "
 
     - name: Clone and build PCRE2
