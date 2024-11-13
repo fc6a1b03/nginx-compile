@@ -45,6 +45,12 @@ jobs:
             brotli-devel glibc-headers glibc-devel libbsd-devel perl-core libxcrypt-compat libtool binutils binutils-gold
         "
 
+    - name: Clone OpenSSL repository
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl
+        "
+
     - name: Clone and build libmaxminddb
       run: |
         docker exec build-nginx-container bash -c "
@@ -52,12 +58,6 @@ jobs:
           git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
           cd libmaxminddb && ./bootstrap && ./configure &&
           make -j$(nproc) && make install
-        "
-
-    - name: Clone OpenSSL repository
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl
         "
 
     - name: Clone and build jemalloc
