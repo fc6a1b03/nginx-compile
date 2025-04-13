@@ -6,7 +6,11 @@ on:
       nginx_version:
         description: "Specify the nginx version"
         required: true
-        default: "1.27.2"
+        default: "1.27.4"
+      openssl_version:
+        description: "Specify the openssl version"
+        required: true
+        default: "openssl-3.5.0"
       prefix:
         description: "Specify the installation prefix"
         required: true
@@ -19,6 +23,7 @@ jobs:
       NGINX_SRC_DIR: "/opt/nginx"
       PREFIX: ${{ github.event.inputs.prefix }}
       NGINX_VERSION: ${{ github.event.inputs.nginx_version }}
+      OPENSSL_VERSION: ${{ github.event.inputs.openssl_version }}
 
     steps:
     - name: Checkout repository
@@ -48,7 +53,7 @@ jobs:
     - name: Clone OpenSSL repository
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/quictls/openssl.git openssl
+          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl
         "
 
     - name: Clone and build libmaxminddb
