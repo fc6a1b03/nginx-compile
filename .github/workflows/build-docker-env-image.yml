@@ -1,0 +1,64 @@
+# 定制构建Ngxin的容器环境镜像
+name: Build Docker Environment Image
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-docker-image:
+    runs-on: ubuntu-latest
+    env:
+      NGINX_SRC_DIR: "/opt/nginx"
+    steps:
+      # 检查缓存的 builder 镜像是否已存在，存在则跳过后续构建
+      - name: Check for cached builder
+        id: cache-check
+        uses: actions/cache@v4
+        with:
+          path: ./cached-nginx-builder.tar
+          key: ${{ runner.os }}-nginx-builder
+          restore-keys: |
+            ${{ runner.os }}-nginx-builder
+          retention-days: 10
+
+      # 若未命中缓存，则拉取almalinux并安装依赖，最终打包镜像
+      - name: Build almalinux with developer tools if not cached
+        if: steps.cache-check.outputs.cache-hit != 'true'
+        run: |
+          # 安装 docker
+          sudo apt-get -qq update
+          sudo apt-get -qq -y install docker-ce
+          # 拉取 almalinux 镜像
+          sudo docker pull -q almalinux:9
+          # 启动一个以 tail -f /dev/null 形式后台运行的构建容器
+          sudo docker run -d --name build-nginx-container -v "${{ github.workspace }}:${{ env.NGINX_SRC_DIR }}" almalinux:9 tail -f /dev/null
+          # 安装开发基础依赖包和常用工具，并清理dnf缓存
+          sudo docker exec build-nginx-container bash -c "
+            dnf clean all &&
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True install dnf-plugins-core &&
+            dnf config-manager --set-enabled crb &&
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release &&
+            dnf clean all &&
+            dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True update &&
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall \"Development Tools\" &&
+          "
+          sudo docker exec build-nginx-container bash -c "
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                  --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
+                  nano wget psmisc go automake gcc gcc-c++ kernel-devel git make cmake tar autoconf \
+                  zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
+                  pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd perl-Test-Simple perl-Text-Template \
+                  libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel libxcrypt-compat libtool binutils \
+                  binutils-gold ninja-build
+          "
+          # 停止并保存容器内容到tar（保留定制后的镜像）
+          sudo docker commit build-nginx-container almalinux:9-nginx-dev
+          sudo docker save -o cached-nginx-builder.tar almalinux:9-nginx-dev
+          # 清理构建容器
+          sudo docker rm -f build-nginx-container
