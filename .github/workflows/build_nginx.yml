@@ -184,38 +184,31 @@ jobs:
         docker exec build-nginx-container bash -c "
           if [ -f ~/.bashrc ]; then source ~/.bashrc; fi
           ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
-          ./configure --prefix=${{ env.PREFIX }} \
-                      --with-compat \
-                      --with-threads \
-                      --with-file-aio \
-                      --with-poll_module \
-                      --with-select_module \
-                      --with-http_v2_module \
-                      --with-http_v3_module \
-                      --with-http_ssl_module \
-                      --with-http_sub_module \
-                      --with-http_slice_module \
-                      --with-http_realip_module \
-                      --with-http_degradation_module \
-                      --with-http_stub_status_module \
-                      --with-http_gzip_static_module \
-                      --with-http_addition_module \
-                      --with-pcre-jit \
-                      --with-pcre=../pcre2 \
-                      --with-stream \
-                      --with-stream_ssl_module \
-                      --with-stream_realip_module \
-                      --with-stream_ssl_preread_module \
-                      --with-zlib=../zlib_ng \
-                      --with-openssl=../openssl \
-                      --add-module=../ngx_zstd \
-                      --add-module=../ngx_brotli \
-                      --add-dynamic-module=../ngx_http_geoip2_module \
-                      --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold -Wl,--undefined-version" \
-                      --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-asm enable-tls1_3 enable-quic enable-ktls' \
-                      --with-cc-opt='-O3 -march=native -mtune=native -mavx2 -funroll-loops -fprefetch-loop-arrays \
-                                 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -ffast-math -fomit-frame-pointer -finline-functions \
-                                 -fno-strict-aliasing -ffunction-sections -fdata-sections -Wl,--gc-sections -fPIC -pipe -flto -fuse-ld=gold'
+          ./configure --prefix=. \
+              --with-compat \
+              --with-threads \
+              --with-file-aio \
+              --with-http_v2_module \
+              --with-http_v3_module \
+              --with-http_ssl_module \
+              --with-http_sub_module \
+              --with-http_slice_module \
+              --with-http_realip_module \
+              --with-http_degradation_module \
+              --with-http_stub_status_module \
+              --with-pcre-jit \
+              --with-pcre=../pcre2 \
+              --with-stream \
+              --with-stream_ssl_module \
+              --with-stream_realip_module \
+              --with-stream_ssl_preread_module \
+              --with-openssl=../openssl \
+              --add-module=../ngx_zstd \
+              --add-module=../ngx_brotli \
+              --add-dynamic-module=../ngx_http_geoip2_module \
+              --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
+              --with-openssl-opt='enable-ec_nistp_64_gcc_128 enable-asm enable-avx2 enable-kyber enable-ktls no-legacy no-weak-ssl-ciphers' \
+              --with-cc-opt='-O3 -march=native -funroll-loops -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -Wl,--gc-sections -pipe -flto -fuse-ld=gold'
         "
 
     - name: Build Nginx
