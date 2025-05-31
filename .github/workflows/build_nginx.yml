@@ -52,8 +52,8 @@ jobs:
               --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools" &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
               --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
-              nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf \
-              zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd \
+              nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
+              pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd perl-IPC-Cmd perl-Test-Simple perl-Text-Template \
               libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel libxcrypt-compat libtool binutils \
               binutils-gold ninja-build
         "
