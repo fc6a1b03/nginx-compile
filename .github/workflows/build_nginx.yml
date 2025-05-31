@@ -230,11 +230,11 @@ jobs:
         path: |
           ${{ github.workspace }}/nginx
           ${{ github.workspace }}/nginx_build_info.txt
-          ${{ github.workspace }}/ngx_http_geoip2_module.so
           ${{ github.workspace }}/GeoCN.mmdb
           ${{ github.workspace }}/GeoLite2-ASN.mmdb
           ${{ github.workspace }}/GeoLite2-City.mmdb
-          ${{ github.workspace }}/GeoLite2-Country.mmdb  
+          ${{ github.workspace }}/GeoLite2-Country.mmdb
+          ${{ github.workspace }}/ngx_http_geoip2_module.so
         retention-days: 2
         compression-level: 9
         if-no-files-found: error
