@@ -165,7 +165,7 @@ jobs:
     - name: Sync Geoip2 File
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }}/geoip && rm -rf * &&
+          cd ${{ env.NGINX_SRC_DIR }}/geoip && rm -rf *.mmdb &&
           chmod +x geoip2_sync.sh && LICENSE_KEY="${LICENSE_KEY}" ./geoip2_sync.sh
         "
       env:
