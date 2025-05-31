@@ -100,7 +100,7 @@ jobs:
     - name: Clone zlib_ng module
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng
+          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib-ng
         "
 
     - name: Clone and build PCRE2
@@ -181,7 +181,7 @@ jobs:
                       --with-stream_ssl_module \
                       --with-stream_realip_module \
                       --with-stream_ssl_preread_module \
-                      --with-zlib=../zlib_ng \
+                      --with-zlib=../zlib-ng \
                       --with-openssl=../openssl \
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
