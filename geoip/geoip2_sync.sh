@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # 检查是否提供了 LICENSE_KEY
 if [ -z "$LICENSE_KEY" ]; then
