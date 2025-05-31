@@ -111,7 +111,7 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng &&
-          cd zlib_ng && ./configure --zlib-compat && make -j$(nproc) && make install
+          cd zlib_ng && CFLAGS="-fPIC" CXXFLAGS="-fPIC" ./configure --zlib-compat && make -j$(nproc) && make install
         "
 
     - name: Clone and build PCRE2
