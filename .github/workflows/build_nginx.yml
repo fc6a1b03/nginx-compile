@@ -97,6 +97,12 @@ jobs:
           cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
         "
 
+    - name: Clone zlib_ng module
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng
+        "
+
     - name: Clone and build PCRE2
       run: |
         docker exec build-nginx-container bash -c "
@@ -171,13 +177,14 @@ jobs:
                       --with-stream \
                       --with-stream_ssl_module \
                       --with-stream_ssl_preread_module \
+                      --with-zlib=../zlib-ng \
                       --with-openssl=../openssl \
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
                       --add-dynamic-module=../ngx_http_geoip2_module \
                       --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-asm enable-tls1_3 enable-quic' \
-                      --with-cc-opt='-O3 -march=haswell -mtune=haswell -mavx2 -funroll-loops -fprefetch-loop-arrays \
+                      --with-cc-opt='-O3 -march=native -mtune=native -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -ffast-math -fomit-frame-pointer -finline-functions \
                                  -fno-strict-aliasing -ffunction-sections -fdata-sections -Wl,--gc-sections -fPIC -pipe -flto -fuse-ld=gold'
         "
