@@ -67,13 +67,14 @@ jobs:
     - name: Clone OpenSSL repository
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf openssl &&
+          git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl
         "
 
     - name: Clone and build libmaxminddb
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} &&
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf libmaxminddb &&
           git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
           cd libmaxminddb && ./bootstrap && ./configure &&
           make -j$(nproc) && make install
@@ -82,7 +83,7 @@ jobs:
     - name: Clone and build jemalloc
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} &&
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf jemalloc &&
           git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
           cd jemalloc && ./autogen.sh && ./configure &&
           make -j$(nproc) && make install &&
@@ -93,14 +94,15 @@ jobs:
     - name: Clone ngx_brotli module
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &&
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_brotli &&
+          git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &&
           cd ngx_brotli && git submodule update --init
         "
 
     - name: Clone and build zstd
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} &&
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf zstd &&
           git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
           cd zstd && make -j$(nproc) && make install
         "
@@ -108,24 +110,23 @@ jobs:
     - name: Clone ngx_zstd module
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_zstd &&
+          git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
         "
 
     - name: Clone zlib_ng module
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng &&
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf zlib_ng && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng &&
           cd zlib_ng && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DZLIB_COMPAT=ON && cmake --build build
         "
 
     - name: Clone and build PCRE2
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} &&
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf pcre2 &&
           git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
-          cd pcre2 &&
-          ./autogen.sh && ./configure &&
-          make -j$(nproc) && make install
+          cd pcre2 && ./autogen.sh && ./configure && make -j$(nproc) && make install
         "
 
     - name: Clone ngx_http_geoip2_module
@@ -164,7 +165,7 @@ jobs:
     - name: Sync Geoip2 File
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }}/geoip &&
+          cd ${{ env.NGINX_SRC_DIR }}/geoip && rm -rf * &&
           chmod +x geoip2_sync.sh && LICENSE_KEY="${LICENSE_KEY}" ./geoip2_sync.sh
         "
       env:
@@ -173,7 +174,7 @@ jobs:
     - name: Download and extract Nginx source
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} &&
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz &&
           curl -L -o "nginx-${{ env.NGINX_VERSION }}.tar.gz" "https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz" &&
           tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz
         "
