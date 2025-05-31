@@ -169,7 +169,7 @@ jobs:
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }} &&
           curl -L -o "nginx-${{ env.NGINX_VERSION }}.tar.gz" "https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz" &&
-          tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz
+          tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz
         "
 
     - name: Configure Nginx
