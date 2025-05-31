@@ -39,12 +39,17 @@ jobs:
     - name: Update system and install base dependencies and Clean DNF cache
       run: |
         docker exec build-nginx-container bash -c "
-          dnf clean all &&
-          dnf --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True update &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True in epel-release &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall 'Development Tools' &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True in \
+          dnf clean all && \
+          dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache && \
+          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True update && \
+          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release && \
+          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools" && \
+          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
               nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf \
               zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre pcre-devel perl-IPC-Cmd \
               libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel perl-core \
