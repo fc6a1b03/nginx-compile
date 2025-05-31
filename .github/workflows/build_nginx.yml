@@ -54,6 +54,8 @@ jobs:
               --setopt=max_parallel_downloads=10 --setopt=keepcache=True update
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
               --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools"
+        "
+        docker exec build-nginx-container bash -c "
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
               --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
               nano wget psmisc go automake gcc gcc-c++ kernel-devel git make cmake tar autoconf zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
