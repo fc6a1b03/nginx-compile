@@ -132,7 +132,7 @@ jobs:
     - name: Clone ngx_http_geoip2_module
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} &&
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_http_geoip2_module &&
           git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
         "
 
