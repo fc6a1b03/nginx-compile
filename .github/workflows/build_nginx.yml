@@ -41,6 +41,9 @@ jobs:
     - name: Update system and install base dependencies and Clean DNF cache
       run: |
         docker exec build-nginx-container bash -c "
+          dnf clean all &&
+          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install dnf-plugins-core &&
           dnf config-manager --set-enabled crb &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
               --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release &&
