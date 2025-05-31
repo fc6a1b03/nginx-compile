@@ -166,7 +166,8 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }}/geoip && rm -rf *.mmdb &&
-          chmod +x geoip2_sync.sh && LICENSE_KEY="${LICENSE_KEY}" ./geoip2_sync.sh
+          chmod +x geoip2_sync.sh && LICENSE_KEY="${LICENSE_KEY}" ./geoip2_sync.sh &&
+          mv *.mmdb ../
         "
       env:
         LICENSE_KEY: ${{ secrets.MAXMIND_LICENSE_KEY }}
@@ -230,10 +231,10 @@ jobs:
           ${{ github.workspace }}/nginx
           ${{ github.workspace }}/nginx_build_info.txt
           ${{ github.workspace }}/ngx_http_geoip2_module.so
-          ${{ github.workspace }}/geoip/GeoCN.mmdb
-          ${{ github.workspace }}/geoip/GeoLite2-ASN.mmdb
-          ${{ github.workspace }}/geoip/GeoLite2-City.mmdb
-          ${{ github.workspace }}/geoip/GeoLite2-Country.mmdb  
+          ${{ github.workspace }}/GeoCN.mmdb
+          ${{ github.workspace }}/GeoLite2-ASN.mmdb
+          ${{ github.workspace }}/GeoLite2-City.mmdb
+          ${{ github.workspace }}/GeoLite2-Country.mmdb  
         retention-days: 2
         compression-level: 9
         if-no-files-found: error
