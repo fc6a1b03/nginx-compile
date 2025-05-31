@@ -1,0 +1,133 @@
+# 编译Nginx的拓展包
+name: Build Nginx Expand
+
+on:
+  workflow_run:
+    workflows: ["Build Docker Environment Image"]
+    types: [completed]
+
+jobs:
+  build-expand:
+    runs-on: ubuntu-latest
+    env:
+      NGINX_SRC_DIR: "/opt/nginx"
+      OPENSSL_VERSION: "openssl-3.5.0"
+    steps:
+      # 恢复基础定制镜像
+      - name: Restore builder image
+        uses: actions/cache@v4
+        with:
+          path: ./cached-nginx-builder.tar
+          key: ${{ runner.os }}-nginx-builder
+          restore-keys: |
+            ${{ runner.os }}-nginx-builder
+          retention-days: 10
+
+      - name: Load builder image and start container
+        run: |
+          sudo docker load -i ./cached-nginx-builder.tar
+          sudo docker run -d --name build-nginx-container -v "${{ github.workspace }}:${{ env.NGINX_SRC_DIR }}" almalinux:9-nginx-dev tail -f /dev/null
+
+      # 检查 expand 缓存
+      - name: Check for cached expands
+        id: expand-cache
+        uses: actions/cache@v4
+        with:
+          path: ./cached-nginx-expand.tar
+          key: ${{ runner.os }}-nginx-expand
+          restore-keys: |
+            ${{ runner.os }}-nginx-expand
+          retention-days: 10
+
+      # 必须每次编译的四个扩展
+      - name: Clone and build libmaxminddb
+        run: |
+          sudo docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf libmaxminddb &&
+            git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
+            cd libmaxminddb && ./bootstrap && ./configure &&
+            make -j\$(nproc) && make install
+          "
+
+      - name: Clone and build jemalloc
+        run: |
+          sudo docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf jemalloc &&
+            git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
+            cd jemalloc && ./autogen.sh && ./configure &&
+            make -j\$(nproc) && make install &&
+            ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
+            ln -sf /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
+          "
+
+      - name: Clone and build zstd
+        run: |
+          sudo docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf zstd &&
+            git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
+            cd zstd && make -j\$(nproc) && make install
+          "
+
+      - name: Clone and build PCRE2
+        run: |
+          sudo docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf pcre2 &&
+            git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
+            cd pcre2 && ./autogen.sh && ./configure && make -j\$(nproc) && make install
+          "
+
+      # 其余可选扩展（如未命中缓存才拉取/构建）
+      - name: Clone OpenSSL repository
+        if: steps.expand-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf openssl &&
+            git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl
+          "
+
+      - name: Clone ngx_brotli module
+        if: steps.expand-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_brotli &&
+            git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &&
+            cd ngx_brotli && git submodule update --init
+          "
+
+      - name: Clone ngx_zstd module
+        if: steps.expand-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_zstd &&
+            git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
+          "
+
+      - name: Clone ngx_http_geoip2_module
+        if: steps.expand-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_http_geoip2_module &&
+            git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
+          "
+
+      # 拉取 GeoIP2 数据文件
+      - name: Sync Geoip2 File
+        run: |
+          sudo docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }}/geoip && rm -rf *.mmdb &&
+            chmod +x geoip2_sync.sh && LICENSE_KEY=\"${LICENSE_KEY}\" ./geoip2_sync.sh &&
+            mv *.mmdb ../
+          "
+        env:
+          LICENSE_KEY: ${{ secrets.MAXMIND_LICENSE_KEY }}
+
+      # 归档所有扩展内容
+      - name: Archive expand components
+        run: |
+          tar -cvf cached-nginx-expand.tar -C ${{ github.workspace }} .
+      
+      # 清理构建容器
+      - name: Stop and remove build-nginx-container
+        if: always()
+        run: |
+          sudo docker rm -f build-nginx-container || true
