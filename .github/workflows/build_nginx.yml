@@ -43,17 +43,17 @@ jobs:
         docker exec build-nginx-container bash -c "
           dnf clean all &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install dnf-plugins-core &&
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install dnf-plugins-core
           dnf config-manager --set-enabled crb &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release &&
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release
           dnf clean all &&
           dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True update &&
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True update
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools" &&
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools"
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
               --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
               nano wget psmisc go automake gcc gcc-c++ kernel-devel git make cmake tar autoconf zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
