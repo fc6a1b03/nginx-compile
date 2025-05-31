@@ -4,6 +4,7 @@ name: Build Nginx Expand
 on:
   workflow_run:
     workflows: ["Build Docker Environment Image"]
+    branches: [main]
     types: [completed]
 
 jobs:
