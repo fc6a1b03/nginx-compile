@@ -40,22 +40,22 @@ jobs:
 
     - name: Update system and install base dependencies and Clean DNF cache
       run: |
-        docker exec build-nginx-container bash -c "
-          dnf clean all &&
-          dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True update &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools" &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
-              nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
-              pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd perl-IPC-Cmd perl-Test-Simple perl-Text-Template \
-              libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel libxcrypt-compat libtool binutils \
-              binutils-gold ninja-build
+        dnf config-manager --set-enabled crb &&
+        dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+            --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release &&
+        dnf clean all &&
+        dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
+            --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
+        dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+            --setopt=max_parallel_downloads=10 --setopt=keepcache=True update &&
+        dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+            --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools" &&
+        dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+            --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
+            nano wget psmisc go automake gcc gcc-c++ kernel-devel git make cmake tar autoconf zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
+            pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd perl-Test-Simple perl-Text-Template libipc-cmd-perl \
+            libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel libxcrypt-compat libtool binutils \
+            binutils-gold ninja-build
         "
 
     - name: Clone OpenSSL repository
@@ -105,12 +105,12 @@ jobs:
           cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
         "
 
-    # - name: Clone zlib_ng module
-    #   run: |
-    #     docker exec build-nginx-container bash -c "
-    #       cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng &&
-    #       cd zlib_ng && CFLAGS="-fPIC" CXXFLAGS="-fPIC" ./configure --zlib-compat && make -j$(nproc) && make install
-    #     "
+    - name: Clone zlib_ng module
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd ${{ env.NGINX_SRC_DIR }} && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng &&
+          cd zlib_ng && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DZLIB_COMPAT=ON && cmake --build build
+        "
 
     - name: Clone and build PCRE2
       run: |
@@ -199,11 +199,12 @@ jobs:
                       --with-stream_ssl_module \
                       --with-stream_realip_module \
                       --with-stream_ssl_preread_module \
+                      --with-zlib=../zlib_ng \
                       --with-openssl=../openssl \
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
                       --add-dynamic-module=../ngx_http_geoip2_module \
-                      --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
+                      --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold -Wl,--undefined-version" \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-asm enable-tls1_3 enable-quic enable-ktls' \
                       --with-cc-opt='-O3 -march=native -mtune=native -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -ffast-math -fomit-frame-pointer -finline-functions \
