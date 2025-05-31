@@ -156,7 +156,6 @@ jobs:
     #     "
 
     - name: Sync Geoip2
-      working-directory: docker
       run: |
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }}/geoip &&
