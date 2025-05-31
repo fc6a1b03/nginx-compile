@@ -168,7 +168,7 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }} &&
-          wget https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz &&
+          curl -L -o "nginx-${{ env.NGINX_VERSION }}.tar.gz" "https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz" &&
           tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz
         "
 
