@@ -155,7 +155,7 @@ jobs:
     #       git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git lua-nginx-module
     #     "
 
-    - name: Sync Geoip2
+    - name: Sync Geoip2 File
       run: |
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }}/geoip &&
