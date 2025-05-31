@@ -8,6 +8,7 @@ on:
 
 jobs:
   build-expand:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
       NGINX_SRC_DIR: "/opt/nginx"
