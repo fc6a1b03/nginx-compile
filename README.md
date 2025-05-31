@@ -58,6 +58,7 @@ sudo ldconfig
 
 ## 备忘录
 ```
+# --with-zlib=../zlib_ng
 # --add-module=../ngx_devel_kit \
 # --add-module=../lua-nginx-module \
 ```
