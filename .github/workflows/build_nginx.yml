@@ -211,7 +211,7 @@ jobs:
                       --add-module=../ngx_zstd \
                       --add-module=../ngx_brotli \
                       --add-dynamic-module=../ngx_http_geoip2_module \
-                      --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
+                      --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold -Wl,--undefined-version" \
                       --with-openssl-opt='no-weak-ssl-ciphers enable-ec_nistp_64_gcc_128 enable-asm enable-tls1_3 enable-quic enable-ktls' \
                       --with-cc-opt='-O3 -march=native -mtune=native -mavx2 -funroll-loops -fprefetch-loop-arrays \
                                  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -ffast-math -fomit-frame-pointer -finline-functions \
