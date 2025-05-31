@@ -36,22 +36,20 @@ jobs:
         sudo docker pull -q almalinux:9
         sudo docker run -d --name build-nginx-container \
           -v "${{ github.workspace }}:${{ env.NGINX_SRC_DIR }}" \
-          --workdir "${{ env.NGINX_SRC_DIR }}" \
-          --restart unless-stopped --pull=missing \
           almalinux:9 tail -f /dev/null
 
     - name: Update system and install base dependencies and Clean DNF cache
       run: |
         docker exec build-nginx-container bash -c "
-          dnf clean all && \
+          dnf clean all &&
           dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache && \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True update && \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True update &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release && \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools" && \
+              --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools" &&
           dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
               --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
               nano wget psmisc cmake go automake gcc gcc-c++ kernel-devel git make tar autoconf \
@@ -157,6 +155,16 @@ jobs:
     #       git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git lua-nginx-module
     #     "
 
+    - name: Sync Geoip2
+      working-directory: docker
+      run: |
+        docker exec build-nginx-container bash -c "
+          cd ${{ env.NGINX_SRC_DIR }}/geoip &&
+          chmod +x geoip2_sync.sh && ./geoip2_sync.sh
+        "
+      env:
+        LICENSE_KEY: ${{ secrets.MAXMIND_LICENSE_KEY }}
+
     - name: Download and extract Nginx source
       run: |
         docker exec build-nginx-container bash -c "
@@ -223,6 +231,10 @@ jobs:
           ${{ github.workspace }}/nginx
           ${{ github.workspace }}/nginx_build_info.txt
           ${{ github.workspace }}/ngx_http_geoip2_module.so
+          ${{ github.workspace }}/geoip/GeoCN.mmdb
+          ${{ github.workspace }}/geoip/GeoLite2-ASN.mmdb
+          ${{ github.workspace }}/geoip/GeoLite2-City.mmdb
+          ${{ github.workspace }}/geoip/GeoLite2-Country.mmdb  
         retention-days: 2
         compression-level: 9
         if-no-files-found: error
