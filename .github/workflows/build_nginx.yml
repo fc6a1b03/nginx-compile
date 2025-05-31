@@ -114,12 +114,12 @@ jobs:
           git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
         "
 
-    - name: Clone zlib_ng module
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf zlib_ng && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng &&
-          cd zlib_ng && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DZLIB_COMPAT=ON && cmake --build build
-        "
+    # - name: Clone zlib_ng module
+    #   run: |
+    #     docker exec build-nginx-container bash -c "
+    #       cd ${{ env.NGINX_SRC_DIR }} && rm -rf zlib_ng && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng &&
+    #       cd zlib_ng && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DZLIB_COMPAT=ON && cmake --build build
+    #     "
 
     - name: Clone and build PCRE2
       run: |
