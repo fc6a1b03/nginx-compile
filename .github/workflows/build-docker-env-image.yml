@@ -1,8 +1,11 @@
-# 定制构建Ngxin的容器环境镜像
 name: Build Docker Environment Image
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Build Nginx Orchestrator"]
+    branches: [main]
+    types: [completed]
 
 jobs:
   build-docker-image:
@@ -10,7 +13,6 @@ jobs:
     env:
       NGINX_SRC_DIR: "/opt/nginx"
     steps:
-      # 检查缓存的 builder 镜像是否已存在，存在则跳过后续构建
       - name: Check for cached builder
         id: cache-check
         uses: actions/cache@v4
@@ -21,7 +23,6 @@ jobs:
             ${{ runner.os }}-nginx-builder
           retention-days: 10
 
-      # 若未命中缓存，则拉取almalinux并安装依赖，最终打包镜像
       - name: Build almalinux with developer tools if not cached
         if: steps.cache-check.outputs.cache-hit != 'true'
         run: |
