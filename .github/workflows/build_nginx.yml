@@ -61,7 +61,7 @@ jobs:
               nano wget psmisc go automake gcc gcc-c++ kernel-devel git make cmake tar autoconf zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
               pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd perl-Test-Simple perl-Text-Template \
               libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel libxcrypt-compat libtool binutils \
-              binutils-gold ninja-build
+              binutils-gold ninja-build libbpf-devel
         "
 
     - name: Clone OpenSSL repository
@@ -80,12 +80,12 @@ jobs:
           make -j$(nproc) && make install
         "
 
-    - name: Clone and build jemalloc
+    - name: Clone and build jemalloc with profiling
       run: |
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }} && rm -rf jemalloc &&
           git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
-          cd jemalloc && ./autogen.sh && ./configure &&
+          cd jemalloc && ./autogen.sh && ./configure --enable-prof --enable-stats --enable-xmalloc &&
           make -j$(nproc) && make install &&
           ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
           ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
@@ -211,9 +211,9 @@ jobs:
               --add-module=../ngx_brotli \
               --with-openssl=../openssl \
               --add-dynamic-module=../ngx_http_geoip2_module \
-              --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
-              --with-openssl-opt='enable-ec_nistp_64_gcc_128 enable-asm enable-avx2 enable-kyber enable-ktls no-legacy no-weak-ssl-ciphers -DOPENSSL_TLS_SECURITY_LEVEL=2' \
-              --with-cc-opt='-O3 -march=native -funroll-loops -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -Wl,--gc-sections -pipe -flto -fuse-ld=gold -DTCP_FASTOPEN=23'
+              --with-ld-opt="-ljemalloc -lprof -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
+              --with-openssl-opt='enable-ec_nistp_64_gcc_128 enable-asm enable-avx2 enable-kyber enable-ktls enable-pqc no-legacy no-weak-ssl-ciphers -DOPENSSL_TLS_SECURITY_LEVEL=3' \
+              --with-cc-opt='-O3 -march=native -funroll-loops -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -Wl,--gc-sections -pipe -flto -fuse-ld=gold -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1'
         "
 
     - name: Build Nginx
