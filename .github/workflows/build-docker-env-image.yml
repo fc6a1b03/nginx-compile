@@ -1,7 +1,6 @@
 name: Build Docker Environment Image
 
 on:
-  workflow_dispatch:
   workflow_run:
     workflows: ["Build Nginx Orchestrator"]
     branches: [main]
