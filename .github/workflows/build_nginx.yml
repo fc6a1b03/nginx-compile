@@ -203,7 +203,6 @@ jobs:
               --with-stream \
               --with-stream_ssl_module \
               --with-stream_realip_module \
-              --with-stream_geoip2_module \
               --with-stream_ssl_preread_module \
               --with-pcre-jit \
               --with-pcre=../pcre2 \
