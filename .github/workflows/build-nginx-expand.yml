@@ -1,7 +1,12 @@
-# 编译Nginx的拓展包
 name: Build Nginx Expand
 
 on:
+  workflow_dispatch:
+    inputs:
+      openssl_version:
+        description: "Specify the openssl version"
+        required: true
+        default: "openssl-3.5.0"
   workflow_run:
     workflows: ["Build Docker Environment Image"]
     branches: [main]
@@ -15,7 +20,6 @@ jobs:
       NGINX_SRC_DIR: "/opt/nginx"
       OPENSSL_VERSION: "openssl-3.5.0"
     steps:
-      # 恢复基础定制镜像
       - name: Restore builder image
         uses: actions/cache@v4
         with:
@@ -30,7 +34,6 @@ jobs:
           sudo docker load -i ./cached-nginx-builder.tar
           sudo docker run -d --name build-nginx-container -v "${{ github.workspace }}:${{ env.NGINX_SRC_DIR }}" almalinux:9-nginx-dev tail -f /dev/null
 
-      # 检查 expand 缓存
       - name: Check for cached expands
         id: expand-cache
         uses: actions/cache@v4
@@ -41,7 +44,8 @@ jobs:
             ${{ runner.os }}-nginx-expand
           retention-days: 10
 
-      # 必须每次编译的四个扩展
+      # ========== 必定拉取/构建 ==========
+
       - name: Clone and build libmaxminddb
         run: |
           sudo docker exec build-nginx-container bash -c "
@@ -78,7 +82,8 @@ jobs:
             cd pcre2 && ./autogen.sh && ./configure && make -j\$(nproc) && make install
           "
 
-      # 其余可选扩展（如未命中缓存才拉取/构建）
+      # ========== 如未命中缓存才拉取/构建 ==========
+      
       - name: Clone OpenSSL repository
         if: steps.expand-cache.outputs.cache-hit != 'true'
         run: |
@@ -114,6 +119,7 @@ jobs:
 
       # 拉取 GeoIP2 数据文件
       - name: Sync Geoip2 File
+        if: steps.expand-cache.outputs.cache-hit != 'true'
         run: |
           sudo docker exec build-nginx-container bash -c "
             cd ${{ env.NGINX_SRC_DIR }}/geoip && rm -rf *.mmdb &&
