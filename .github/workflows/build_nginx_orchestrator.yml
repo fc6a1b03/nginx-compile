@@ -54,7 +54,7 @@ jobs:
 
       # 3. 等待依赖工作流完成
       - name: Wait for dependencies
-        uses: fountainhead/action-wait-for-check@v2.0.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
         with:
           token: ${{ secrets.PAT }}
           checkName: 'Build Docker Environment Image'
