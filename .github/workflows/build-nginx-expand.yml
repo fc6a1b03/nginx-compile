@@ -1,12 +1,6 @@
 name: Build Nginx Expand
 
 on:
-  workflow_dispatch:
-    inputs:
-      openssl_version:
-        description: "Specify the openssl version"
-        required: true
-        default: "openssl-3.5.0"
   workflow_run:
     workflows: ["Build Docker Environment Image"]
     branches: [main]
@@ -18,7 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NGINX_SRC_DIR: "/opt/nginx"
-      OPENSSL_VERSION: "openssl-3.5.0"
+      # 从父工作流获取参数
+      PREFIX: ${{ github.event.workflow_run.inputs.prefix || '/usr/local/nginx' }}
+      NGINX_VERSION: ${{ github.event.workflow_run.inputs.nginx_version || '1.28.0' }}
+      OPENSSL_VERSION: ${{ github.event.workflow_run.inputs.openssl_version || 'openssl-3.5.0' }}
     steps:
       - name: Restore builder image
         uses: actions/cache@v4
