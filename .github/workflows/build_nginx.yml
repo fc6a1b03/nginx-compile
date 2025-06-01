@@ -212,7 +212,7 @@ jobs:
               --add-dynamic-module=../ngx_http_geoip2_module \
               --with-ld-opt="-ljemalloc -lcrypt -Wl,-z,relro,-z,now -flto -fuse-ld=gold" \
               --with-openssl-opt='enable-ec_nistp_64_gcc_128 enable-asm enable-avx2 enable-kyber enable-ktls enable-pqc no-legacy no-weak-ssl-ciphers -DOPENSSL_TLS_SECURITY_LEVEL=3' \
-              --with-cc-opt='-O3 -march=native -funroll-loops -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -Wl,--gc-sections -pipe -flto -fuse-ld=gold -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1'
+              --with-cc-opt='-O3 -march=native -funroll-loops -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -Wl,--gc-sections -pipe -flto -fuse-ld=gold -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_GEOIP2_CACHE=1'
         "
 
     - name: Build Nginx
