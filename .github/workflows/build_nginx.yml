@@ -232,11 +232,8 @@ jobs:
         name: nginx-linux64-${{ env.NGINX_VERSION }}
         path: |
           ${{ github.workspace }}/nginx
+          ${{ github.workspace }}/*.mmdb
           ${{ github.workspace }}/nginx_build_info.txt
-          ${{ github.workspace }}/GeoCN.mmdb
-          ${{ github.workspace }}/GeoLite2-ASN.mmdb
-          ${{ github.workspace }}/GeoLite2-City.mmdb
-          ${{ github.workspace }}/GeoLite2-Country.mmdb
           ${{ github.workspace }}/ngx_http_geoip2_module.so
         retention-days: 2
         compression-level: 9
