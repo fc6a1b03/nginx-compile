@@ -95,7 +95,7 @@ jobs:
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }} && rm -rf jemalloc &&
           git clone --depth 1 --recurse-submodules https://github.com/google/tcmalloc.git tcmalloc &&
-          cd tcmalloc && ./autogen.sh && ./configure --disable-shared --enable-libunwind && make -j$(nproc) && make install
+          cd tcmalloc && ./configure --disable-shared --enable-libunwind && make -j$(nproc) && make install
         "
 
     - name: Clone ngx_brotli module
