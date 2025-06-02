@@ -243,7 +243,6 @@ jobs:
           ldd ${{ env.NGINX_SRC_DIR }}/nginx | awk '\''NF >= 3 && $2 == "=>" && $3 ~ /^\// {print $3}'\'' | while read -r LIB; do
             # 跳过无效路径
             if [ -z "$LIB" ] || [ ! -e "$LIB" ]; then
-                echo "Skipping invalid path: $LIB"
                 continue
             fi
             # 排除核心系统库
@@ -253,7 +252,6 @@ jobs:
                [[ "$LIB" == */libpthread.so* ]] || \
                [[ "$LIB" == */libdl.so* ]] || \
                [[ "$LIB" == */libgcc_s.so* ]]; then
-                echo "Skipping system library: $LIB"
                 continue
             fi
             echo "Copying library: $LIB"
