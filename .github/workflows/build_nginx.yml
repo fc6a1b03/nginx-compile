@@ -234,6 +234,7 @@ jobs:
           mv objs/nginx ${{ env.NGINX_SRC_DIR }}/ &&
           mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
         "
+
     - name: Bundle shared libraries and fix RPATH
       run: |
         docker exec build-nginx-container bash -c '
