@@ -96,7 +96,8 @@ jobs:
           cd /opt && rm -rf gperftools &&
           git clone --depth 1 --recurse-submodules https://github.com/gperftools/gperftools.git gperftools &&
           cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker CXXFLAGS='-O3 -fPIC' &&
-          make -j$(nproc) && make install
+          make -j$(nproc) && make install &&
+          ln -s /usr/local/lib/libtcmalloc_minimal.so.4 /usr/lib/libtcmalloc_minimal.so.4
         "
 
     - name: Clone ngx_brotli module
