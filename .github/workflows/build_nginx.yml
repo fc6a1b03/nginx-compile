@@ -20,7 +20,7 @@ jobs:
   build-nginx:
     runs-on: ubuntu-latest
     env:
-      NGINX_SRC_DIR: "${{ env.NGINX_SRC_DIR }}/nginx"
+      NGINX_SRC_DIR: "/opt/nginx"
       PREFIX: ${{ github.event.inputs.prefix }}
       NGINX_VERSION: ${{ github.event.inputs.nginx_version }}
       OPENSSL_VERSION: ${{ github.event.inputs.openssl_version }}
