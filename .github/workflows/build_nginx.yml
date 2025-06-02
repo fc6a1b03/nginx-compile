@@ -183,7 +183,7 @@ jobs:
     - name: Download and extract Nginx source
       run: |
         docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }}
+          cd ${{ env.NGINX_SRC_DIR }} && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }} &&
           curl -L -o "nginx-${{ env.NGINX_VERSION }}.tar.gz" "https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz" &&
           tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz
         "
