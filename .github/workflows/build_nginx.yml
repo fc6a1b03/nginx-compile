@@ -89,12 +89,13 @@ jobs:
     #       ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
     #       ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
     #     "
+    
     - name: Clone and build tcmalloc_minimal
       run: |
         docker exec build-nginx-container bash -c "
           cd /opt && rm -rf gperftools &&
-          git clone --depth 1 --recurse-submodules https://github.com/gperftools/gperftools.git &&
-          cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker &&
+          git clone --depth 1 --recurse-submodules https://github.com/gperftools/gperftools.git gperftools &&
+          cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker CXXFLAGS='-O3 -fPIC' &&
           make -j$(nproc) && make install
         "
 
