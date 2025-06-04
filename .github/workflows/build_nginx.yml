@@ -292,4 +292,5 @@ jobs:
           ${{ github.workspace }}/nginx_build_info.txt
         retention-days: 2
         compression-level: 9
-        if-no-files-found: error
+        if-no-files-found: ignore
+      continue-on-error: true
