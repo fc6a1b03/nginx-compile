@@ -188,7 +188,7 @@ jobs:
       run: |
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }}/geoip && chmod +x geoip2_sync.sh && LICENSE_KEY="${LICENSE_KEY}" ./geoip2_sync.sh &&
-          rm -rf ${{ env.NGINX_SRC_DIR }}/modules &&  mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && 
+          rm -rf ${{ env.NGINX_SRC_DIR }}/modules && mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && 
           mv ${{ env.NGINX_SRC_DIR }}/geoip/*.mmdb ${{ env.NGINX_SRC_DIR }}/modules
         "
       env:
@@ -246,7 +246,7 @@ jobs:
           make -j$(nproc) &&
           objs/nginx -V &> ${{ env.NGINX_SRC_DIR }}/nginx_build_info.txt &&
           mv objs/nginx ${{ env.NGINX_SRC_DIR }}/ &&
-          mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
+          mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
         "
 
     - name: Bundle shared libraries and fix RPATH
