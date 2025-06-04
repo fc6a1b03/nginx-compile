@@ -4,21 +4,28 @@ on:
   workflow_dispatch:
     inputs:
       nginx_version:
-        description: "Specify the nginx version"
+        type: string
         required: true
         default: "1.28.0"
+        description: "Specify the nginx version"
       openssl_version:
-        description: "Specify the openssl version"
+        type: string
         required: true
         default: "openssl-3.5.0"
+        description: "Specify the openssl version"
       prefix:
-        description: "Specify the installation prefix"
+        type: string
         required: true
         default: "/usr/local/nginx"
+        description: "Specify the installation prefix"
       enable_geoip2:
-        description: 'Enable Geoip2 Sync'
+        type: string
         required: true
-        default: "false"
+        default: "no"
+        options:
+          - 'yes'
+          - 'no'
+        description: 'Enable Geoip2 Sync'
 
 jobs:
   build-nginx:
@@ -177,7 +184,7 @@ jobs:
     #     "
 
     - name: Sync Geoip2 File
-      if: ${{ env.ENABLE_GEOIP2 == "true" }}
+      if: ${{ env.ENABLE_GEOIP2 == 'yes' }}
       run: |
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }}/geoip && chmod +x geoip2_sync.sh && LICENSE_KEY="${LICENSE_KEY}" ./geoip2_sync.sh &&
