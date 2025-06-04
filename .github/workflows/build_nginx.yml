@@ -15,6 +15,10 @@ on:
         description: "Specify the installation prefix"
         required: true
         default: "/usr/local/nginx"
+      enable_geoip2:
+        description: 'Enable Geoip2 Sync'
+        required: true
+        default: "false"
 
 jobs:
   build-nginx:
@@ -22,6 +26,7 @@ jobs:
     env:
       NGINX_SRC_DIR: "/opt/nginx"
       PREFIX: ${{ github.event.inputs.prefix }}
+      ENABLE_GEOIP2: ${{ github.event.inputs.enable_geoip2 }}
       NGINX_VERSION: ${{ github.event.inputs.nginx_version }}
       OPENSSL_VERSION: ${{ github.event.inputs.openssl_version }}
 
@@ -172,6 +177,7 @@ jobs:
     #     "
 
     - name: Sync Geoip2 File
+      if: ${{ env.ENABLE_GEOIP2 == "true" }}
       run: |
         docker exec build-nginx-container bash -c "
           cd ${{ env.NGINX_SRC_DIR }}/geoip && chmod +x geoip2_sync.sh && LICENSE_KEY="${LICENSE_KEY}" ./geoip2_sync.sh &&
