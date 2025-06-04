@@ -286,9 +286,9 @@ jobs:
       with:
         name: nginx-linux64-${{ env.NGINX_VERSION }}
         path: |
-          ${{ github.workspace }}/libs
-          ${{ github.workspace }}/modules
           ${{ github.workspace }}/nginx
+          ${{ github.workspace }}/libs/**
+          ${{ github.workspace }}/modules/**
           ${{ github.workspace }}/nginx_build_info.txt
         retention-days: 2
         compression-level: 9
