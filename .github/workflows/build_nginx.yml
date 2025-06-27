@@ -252,33 +252,40 @@ jobs:
     - name: Bundle shared libraries and fix RPATH
       run: |
         docker exec build-nginx-container bash -c '
-          ldconfig && rm -rf ${{ env.NGINX_SRC_DIR }}/libs &&  mkdir -p ${{ env.NGINX_SRC_DIR }}/libs
+          ldconfig && rm -rf ${{ env.NGINX_SRC_DIR }}/libs && mkdir -p ${{ env.NGINX_SRC_DIR }}/libs  
+          # 使用关联数组存储已复制的库文件（基于inode）
+          declare -A copied_libs
           # 获取并处理ldd输出
-          ldd ${{ env.NGINX_SRC_DIR }}/nginx | awk '\''NF >= 3 && $2 == "=>" && $3 ~ /^\// {print $3}'\'' | while read -r LIB; do
-            # 跳过无效路径
-            if [ -z "$LIB" ] || [ ! -e "$LIB" ]; then
+          ldd ${{ env.NGINX_SRC_DIR }}/nginx | 
+            awk '\''NF >= 3 && $2 == "=>" && $3 ~ /^\// {print $3}'\'' |
+            while read -r LIB; do
+              # 跳过无效路径
+              if [ -z "$LIB" ] || [ ! -e "$LIB" ]; then
                 continue
-            fi
-            # 排除核心系统库
-            if [[ "$LIB" == /lib64/ld-linux* ]] || \
-               [[ "$LIB" == */libc.so* ]] || \
-               [[ "$LIB" == */libm.so* ]] || \
-               [[ "$LIB" == */libpthread.so* ]] || \
-               [[ "$LIB" == */libdl.so* ]] || \
-               [[ "$LIB" == */libgcc_s.so* ]]; then
+              fi
+              # 解析到最终的真实文件（递归解析符号链接）
+              REAL_LIB=$(readlink -f "$LIB")
+              if [ -z "$REAL_LIB" ] || [ ! -f "$REAL_LIB" ]; then
                 continue
-            fi
-            echo "Copying library: $LIB"
-            cp -v "$LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
-            # 处理符号链接（仅当是链接时）
-            if [ -L "$LIB" ]; then
-                REAL_LIB=$(readlink -f "$LIB")
-                if [ -n "$REAL_LIB" ] && [ -e "$REAL_LIB" ]; then
-                    echo "Copying real library: $REAL_LIB"
-                    cp -v "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
-                fi
-            fi
-          done
+              fi
+              # 获取inode标识（避免重复复制）
+              INODE=$(stat -c "%i" "$REAL_LIB")
+              # 排除核心系统库
+              if [[ "$REAL_LIB" == /lib64/ld-linux* ]] || \
+                 [[ "$REAL_LIB" == */libc.so* ]] || \
+                 [[ "$REAL_LIB" == */libm.so* ]] || \
+                 [[ "$REAL_LIB" == */libpthread.so* ]] || \
+                 [[ "$REAL_LIB" == */libdl.so* ]] || \
+                 [[ "$REAL_LIB" == */libgcc_s.so* ]]; then
+                continue
+              fi
+              # 检查是否已复制过相同inode的文件
+              if [[ ! -v copied_libs["$INODE"] ]]; then
+                echo "Copying library: $(basename "$REAL_LIB")"
+                cp -v "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
+                copied_libs["$INODE"]=1
+              fi
+            done
         '
       
     - name: Upload Nginx binary and build information to repository
