@@ -46,7 +46,7 @@ if ($geoip2_country_code != "CN") {
 
 ## 相关问题
 ```base
-# 设置拓展库目录
+# 设置拓展库目录，`libs`可以在构建产物中找到
 echo "/nginx/libs" | sudo tee /etc/ld.so.conf.d/nginx-libs.conf
 # 更新动态链接器缓存
 sudo ldconfig
