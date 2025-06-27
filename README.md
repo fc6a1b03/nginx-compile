@@ -46,13 +46,9 @@ if ($geoip2_country_code != "CN") {
 
 ## 相关问题
 ```base
-# ./nginx: error while loading shared libraries: libjemalloc.so.2: cannot open shared object file: No such file or directory
-sudo find / -name libjemalloc.so.2
-sudo ln -s /xxx/usr/lib64/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
-sudo ldconfig
-# ./nginx: error while loading shared libraries: libcrypt.so.2: cannot open shared object file: No such file or directory
-sudo find / -name libcrypt.so.2
-sudo ln -s /xxx/usr/lib64/libcrypt.so.2 /usr/lib64/libcrypt.so.2
+# 设置拓展库目录
+echo "/nginx/libs" | sudo tee /etc/ld.so.conf.d/nginx-libs.conf
+# 更新动态链接器缓存
 sudo ldconfig
 ```
 
