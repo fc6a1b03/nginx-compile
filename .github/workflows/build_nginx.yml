@@ -6,7 +6,7 @@ on:
       nginx_version:
         type: string
         required: true
-        default: "1.28.0"
+        default: "1.29.0"
         description: "Specify the nginx version"
       openssl_version:
         type: string
