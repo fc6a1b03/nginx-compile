@@ -159,6 +159,16 @@ jobs:
             cd LuaJIT && make -j$(nproc) && make install PREFIX=/usr/local/luajit
           "
 
+      - name: Set LuaJIT environment variables
+        run: |
+          docker exec build-nginx-container bash -c "
+            echo 'export LUAJIT_LIB=/usr/local/luajit/lib' >> /etc/profile && \
+            echo 'export LUAJIT_INC=/usr/local/luajit/include/luajit-2.1' >> /etc/profile && \
+            export LUAJIT_LIB=/usr/local/luajit/lib && \
+            export LUAJIT_INC=/usr/local/luajit/include/luajit-2.1 && \
+            ldconfig
+          "
+
       - name: Clone lua-nginx-module
         run: |
           docker exec build-nginx-container bash -c "
