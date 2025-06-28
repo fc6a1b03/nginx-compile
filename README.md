@@ -15,7 +15,7 @@
 
 ## Geo数据库配置示例
 
-> Geo模块可显示访问日志中的 IP 信息，并根据 IP 所在地区进行访问限制。
+> Geo模块可显示访问日志中的 IP 信息，并根据 IP 所在地区进行访问限��。
 
 ```nginx
 # 加载 GeoLite2 ASN 数据库
@@ -85,3 +85,32 @@ sudo ldconfig
 --add-module=../ngx_devel_kit \
 --add-module=../lua-nginx-module \
 ```
+
+---
+
+## 构建与GeoIP数据库自动化流程说明
+
+### 1. GeoIP2 数据库自动同步脚本（geoip/geoip2_sync.sh）
+
+- 支持自动下载最新的 MaxMind GeoLite2-City、GeoLite2-ASN、GeoLite2-Country 及 GeoCN.mmdb 数据库。
+- 需提前设置 `LICENSE_KEY` 环境变量（MaxMind 账户密钥）。
+- 并发下载并自动解压，下载失败自动终止。
+- 适用于自动化构建流程，确保数据库为最新版本。
+
+### 2. Nginx 自动化编译流程（.GitHub/workflows/build_nginx.yml）
+
+- 支持自定义 Nginx/Openssl 版本、安装前缀、GeoIP2 数据库下载开关等参数。
+- 基于 Docker（AlmaLinux 9）隔离环境，自动拉取依赖、源码及第三方模块（如 brotli、zstd、geoip2、pcre2 等）。
+- 自动构建并集成 malloc、libmaxminddb、zstd、brotli、pcre2 等依赖。
+- 可选自动同步 GeoIP2 数据库（调用 geoip2_sync.sh 脚本）。
+- Nginx 编译参数高度优化，支持 HTTP/3、QUIC、TLS1.3、Brotli、Zstd、GeoIP2 等。
+- 自动收集依赖动态库，打包产物（nginx 二进制、动态模块、依赖库、构建信息）并上传。
+
+---
+
+## 主要自动化流程模块
+
+- **geoip2_sync.sh**：一键下载并解压 GeoIP2/GeoCN 数据库，适配自动化流水线。
+- **build_nginx.yml**：CI/CD 自动化编译 Nginx，集成多模块与依赖，支持灵活参数配置与产物打包。
+
+---
