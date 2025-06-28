@@ -38,266 +38,223 @@ jobs:
       OPENSSL_VERSION: ${{ github.event.inputs.openssl_version }}
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Pull Docker image for chosen system and Start Docker container
-      run: |
-        sudo apt-get -qq update
-        sudo apt-get -qq -y install docker-ce
-        sudo docker pull -q almalinux:9
-        sudo docker run -d --name build-nginx-container \
-          -v "${{ github.workspace }}:${{ env.NGINX_SRC_DIR }}" \
-          almalinux:9 tail -f /dev/null
+      - name: Pull Docker image for chosen system and Start Docker container
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get -qq -y install docker-ce
+          sudo docker pull -q almalinux:9
+          sudo docker run -d --name build-nginx-container \
+            -v "${{ github.workspace }}:${{ env.NGINX_SRC_DIR }}" \
+            almalinux:9 tail -f /dev/null
 
-    - name: Update system and install base dependencies and Clean DNF cache
-      run: |
-        docker exec build-nginx-container bash -c "
-          dnf clean all &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install dnf-plugins-core
-          dnf config-manager --set-enabled crb &&
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release
-          dnf clean all &&
-          dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True update
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools"
-        "
-        docker exec build-nginx-container bash -c "
-          dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
-              --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
-              nano wget psmisc go automake gcc gcc-c++ kernel-devel git make cmake tar autoconf zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
-              pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd perl-Test-Simple perl-Text-Template \
-              libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel libxcrypt-compat libtool binutils \
-              binutils-gold ninja-build libbpf-devel libunwind-devel
-        "
+      - name: Update system and install base dependencies and Clean DNF cache
+        run: |
+          docker exec build-nginx-container bash -c "
+            dnf clean all &&
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True install dnf-plugins-core
+            dnf config-manager --set-enabled crb &&
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release
+            dnf clean all &&
+            dnf --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True makecache
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True update
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True groupinstall "Development Tools"
+          "
+          docker exec build-nginx-container bash -c "
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
+                --setopt=max_parallel_downloads=10 --setopt=keepcache=True install \
+                nano wget psmisc go automake gcc gcc-c++ kernel-devel git make cmake tar autoconf zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
+                pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd perl-Test-Simple perl-Text-Template \
+                libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel libxcrypt-compat libtool binutils \
+                binutils-gold ninja-build libbpf-devel libunwind-devel
+          "
 
-    - name: Clone OpenSSL repository
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf openssl &&
-          git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl
-        "
+      - name: Clone OpenSSL repository
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf openssl &&
+            git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl
+          "
 
-    - name: Clone and build libmaxminddb
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf libmaxminddb &&
-          git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
-          cd libmaxminddb && ./bootstrap && ./configure &&
-          make -j$(nproc) && make install
-        "
+      - name: Clone and build libmaxminddb
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf libmaxminddb &&
+            git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
+            cd libmaxminddb && ./bootstrap && ./configure &&
+            make -j$(nproc) && make install
+          "
 
-    # - name: Clone and build jemalloc
-    #   run: |
-    #     docker exec build-nginx-container bash -c "
-    #       cd ${{ env.NGINX_SRC_DIR }} && rm -rf jemalloc &&
-    #       git clone --depth 1 --recurse-submodules https://github.com/jemalloc/jemalloc.git jemalloc &&
-    #       cd jemalloc && ./autogen.sh && ./configure && make -j$(nproc) && make install &&
-    #       ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 &&
-    #       ln -s /usr/local/lib/libjemalloc.so.2 /usr/lib64/libjemalloc.so.2
-    #     "
-    
-    - name: Clone and build tcmalloc_minimal
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf gperftools &&
-          git clone --depth 1 --recurse-submodules https://github.com/gperftools/gperftools.git gperftools &&
-          cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker CXXFLAGS='-O3 -fPIC' &&
-          make -j$(nproc) && make install &&
-          ln -s /usr/local/lib/libtcmalloc_minimal.so.4 /usr/lib/libtcmalloc_minimal.so.4
-        "
+      - name: Clone and build tcmalloc_minimal
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf gperftools &&
+            git clone --depth 1 --recurse-submodules https://github.com/gperftools/gperftools.git gperftools &&
+            cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker CXXFLAGS='-O3 -fPIC' &&
+            make -j$(nproc) && make install &&
+            ln -s /usr/local/lib/libtcmalloc_minimal.so.4 /usr/lib/libtcmalloc_minimal.so.4
+          "
 
-    - name: Clone ngx_brotli module
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_brotli &&
-          git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &&
-          cd ngx_brotli && git submodule update --init
-        "
+      - name: Clone ngx_brotli module
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_brotli &&
+            git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &&
+            cd ngx_brotli && git submodule update --init
+          "
 
-    - name: Clone and build zstd
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf zstd &&
-          git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
-          cd zstd && make -j$(nproc) && make install
-        "
+      - name: Clone and build zstd
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf zstd &&
+            git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
+            cd zstd && make -j$(nproc) && make install
+          "
 
-    - name: Clone ngx_zstd module
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_zstd &&
-          git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
-        "
+      - name: Clone ngx_zstd module
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_zstd &&
+            git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
+          "
 
-    # - name: Clone zlib_ng module
-    #   run: |
-    #     docker exec build-nginx-container bash -c "
-    #       cd ${{ env.NGINX_SRC_DIR }} && rm -rf zlib_ng && git clone --depth 1 --recurse-submodules https://github.com/zlib-ng/zlib-ng.git zlib_ng &&
-    #       cd zlib_ng && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DZLIB_COMPAT=ON && cmake --build build
-    #     "
+      - name: Clone and build PCRE2
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf pcre2 &&
+            git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
+            cd pcre2 && ./autogen.sh && ./configure && make -j$(nproc) && make install
+          "
 
-    - name: Clone and build PCRE2
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf pcre2 &&
-          git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
-          cd pcre2 && ./autogen.sh && ./configure && make -j$(nproc) && make install
-        "
+      - name: Clone ngx_http_geoip2_module
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_http_geoip2_module &&
+            git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
+          "
 
-    - name: Clone ngx_http_geoip2_module
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_http_geoip2_module &&
-          git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
-        "
+      - name: Sync Geoip2 File
+        if: ${{ env.ENABLE_GEOIP2 == 'yes' }}
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }}/geoip && chmod +x geoip2_sync.sh && LICENSE_KEY="${LICENSE_KEY}" ./geoip2_sync.sh &&
+            rm -rf ${{ env.NGINX_SRC_DIR }}/modules && mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && 
+            mv ${{ env.NGINX_SRC_DIR }}/geoip/*.mmdb ${{ env.NGINX_SRC_DIR }}/modules
+          "
+        env:
+          LICENSE_KEY: ${{ secrets.MAXMIND_LICENSE_KEY }}
 
-    # - name: Clone and build luajit2
-    #   run: |
-    #     docker exec build-nginx-container bash -c "
-    #       cd ${{ env.NGINX_SRC_DIR }} &&
-    #       git clone --depth 1 --recurse-submodules https://github.com/openresty/luajit2.git luajit2
-    #       cd luajit2
-    #       make -j$(nproc) && make install &&
-    #       echo 'export LUAJIT_LIB=/usr/local/lib' >> ~/.bashrc &&
-    #       echo 'export LUAJIT_INC=/usr/local/include/luajit-2.1' >> ~/.bashrc &&
-    #       luajit -v
-    #     "
+      - name: Download and extract Nginx source
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }} &&
+            curl -L -o "nginx-${{ env.NGINX_VERSION }}.tar.gz" "https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz" &&
+            tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz
+          "
 
-    # - name: Clone ngx_devel_kit
-    #   run: |
-    #     docker exec build-nginx-container bash -c "
-    #       cd ${{ env.NGINX_SRC_DIR }} &&
-    #       git clone --depth 1 --recurse-submodules https://github.com/vision5/ngx_devel_kit.git ngx_devel_kit
-    #     "
+      - name: Configure Nginx
+        run: |
+          docker exec build-nginx-container bash -c "
+            if [ -f ~/.bashrc ]; then source ~/.bashrc; fi
+            ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
+            ./configure --prefix=${{ env.PREFIX }} \
+                --with-compat \
+                --with-threads \
+                --with-file-aio \
+                --with-http_v2_module \
+                --with-http_v3_module \
+                --with-http_ssl_module \
+                --with-http_sub_module \
+                --with-http_slice_module \
+                --with-http_realip_module \
+                --with-http_gunzip_module \
+                --with-http_gzip_static_module \
+                --with-http_degradation_module \
+                --with-http_stub_status_module \
+                --with-http_random_index_module \
+                --without-http_autoindex_module \
+                --with-stream \
+                --with-stream_ssl_module \
+                --with-stream_realip_module \
+                --with-stream_ssl_preread_module \
+                --with-pcre-jit \
+                --with-pcre=../pcre2 \
+                --add-module=../ngx_zstd \
+                --add-module=../ngx_brotli \
+                --with-openssl=../openssl \
+                --add-dynamic-module=../ngx_http_geoip2_module \
+                --with-ld-opt="-ltcmalloc_minimal -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2" \
+                --with-openssl-opt='-O3 -march=native enable-ec_nistp_64_gcc_128 enable-asm enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3' \
+                --with-cc-opt='-O3 -march=native -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -fprofile-use -pipe -Wl,--gc-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1'
+          "
 
-    # - name: Clone lua_nginx_module
-    #   run: |
-    #     docker exec build-nginx-container bash -c "
-    #       cd ${{ env.NGINX_SRC_DIR }} &&
-    #       git clone --depth 1 --recurse-submodules https://github.com/openresty/lua-nginx-module.git lua-nginx-module
-    #     "
+      - name: Build Nginx
+        run: |
+          docker exec build-nginx-container bash -c "
+            if [ -f ~/.bashrc ]; then source ~/.bashrc; fi
+            ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
+            make -j$(nproc) &&
+            objs/nginx -V &> ${{ env.NGINX_SRC_DIR }}/nginx_build_info.txt &&
+            mv objs/nginx ${{ env.NGINX_SRC_DIR }}/ &&
+            mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
+          "
 
-    - name: Sync Geoip2 File
-      if: ${{ env.ENABLE_GEOIP2 == 'yes' }}
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }}/geoip && chmod +x geoip2_sync.sh && LICENSE_KEY="${LICENSE_KEY}" ./geoip2_sync.sh &&
-          rm -rf ${{ env.NGINX_SRC_DIR }}/modules && mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && 
-          mv ${{ env.NGINX_SRC_DIR }}/geoip/*.mmdb ${{ env.NGINX_SRC_DIR }}/modules
-        "
-      env:
-        LICENSE_KEY: ${{ secrets.MAXMIND_LICENSE_KEY }}
+      - name: Bundle shared libraries and fix RPATH
+        run: |
+          docker exec build-nginx-container bash -c '
+            ldconfig && rm -rf ${{ env.NGINX_SRC_DIR }}/libs && mkdir -p ${{ env.NGINX_SRC_DIR }}/libs  
+            # 使用关联数组存储已复制的库文件（基于inode）
+            declare -A copied_libs
+            # 获取并处理ldd输出
+            ldd ${{ env.NGINX_SRC_DIR }}/nginx | 
+              awk '\''NF >= 3 && $2 == "=>" && $3 ~ /^\// {print $3}'\'' |
+              while read -r LIB; do
+                # 跳过无效路径
+                if [ -z "$LIB" ] || [ ! -e "$LIB" ]; then
+                  continue
+                fi
+                # 解析到最终的真实文件（递归解析符号链接）
+                REAL_LIB=$(readlink -f "$LIB")
+                if [ -z "$REAL_LIB" ] || [ ! -f "$REAL_LIB" ]; then
+                  continue
+                fi
+                # 获取inode标识（避免重复复制）
+                INODE=$(stat -c "%i" "$REAL_LIB")
+                # 排除核心系统库
+                if [[ "$REAL_LIB" == /lib64/ld-linux* ]] || \
+                   [[ "$REAL_LIB" == */libc.so* ]] || \
+                   [[ "$REAL_LIB" == */libm.so* ]] || \
+                   [[ "$REAL_LIB" == */libpthread.so* ]] || \
+                   [[ "$REAL_LIB" == */libdl.so* ]] || \
+                   [[ "$REAL_LIB" == */libgcc_s.so* ]]; then
+                  continue
+                fi
+                # 检查是否已复制过相同inode的文件
+                if [[ ! -v copied_libs["$INODE"] ]]; then
+                  echo "Copying library: $(basename "$REAL_LIB")"
+                  cp -v "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
+                  copied_libs["$INODE"]=1
+                fi
+              done
+          '
 
-    - name: Download and extract Nginx source
-      run: |
-        docker exec build-nginx-container bash -c "
-          cd ${{ env.NGINX_SRC_DIR }} && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }} &&
-          curl -L -o "nginx-${{ env.NGINX_VERSION }}.tar.gz" "https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz" &&
-          tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz
-        "
-
-    - name: Configure Nginx
-      run: |
-        docker exec build-nginx-container bash -c "
-          if [ -f ~/.bashrc ]; then source ~/.bashrc; fi
-          ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
-          ./configure --prefix=${{ env.PREFIX }} \
-              --with-compat \
-              --with-threads \
-              --with-file-aio \
-              --with-http_v2_module \
-              --with-http_v3_module \
-              --with-http_ssl_module \
-              --with-http_sub_module \
-              --with-http_slice_module \
-              --with-http_realip_module \
-              --with-http_gunzip_module \
-              --with-http_gzip_static_module \
-              --with-http_degradation_module \
-              --with-http_stub_status_module \
-              --with-http_random_index_module \
-              --without-http_autoindex_module \
-              --with-stream \
-              --with-stream_ssl_module \
-              --with-stream_realip_module \
-              --with-stream_ssl_preread_module \
-              --with-pcre-jit \
-              --with-pcre=../pcre2 \
-              --add-module=../ngx_zstd \
-              --add-module=../ngx_brotli \
-              --with-openssl=../openssl \
-              --add-dynamic-module=../ngx_http_geoip2_module \
-              --with-ld-opt="-ltcmalloc_minimal -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2" \
-              --with-openssl-opt='-O3 -march=native enable-ec_nistp_64_gcc_128 enable-asm enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3' \
-              --with-cc-opt='-O3 -march=native -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -fprofile-use -pipe -Wl,--gc-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1'
-        "
-
-    - name: Build Nginx
-      run: |
-        docker exec build-nginx-container bash -c "
-          if [ -f ~/.bashrc ]; then source ~/.bashrc; fi
-          ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
-          make -j$(nproc) &&
-          objs/nginx -V &> ${{ env.NGINX_SRC_DIR }}/nginx_build_info.txt &&
-          mv objs/nginx ${{ env.NGINX_SRC_DIR }}/ &&
-          mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
-        "
-
-    - name: Bundle shared libraries and fix RPATH
-      run: |
-        docker exec build-nginx-container bash -c '
-          ldconfig && rm -rf ${{ env.NGINX_SRC_DIR }}/libs && mkdir -p ${{ env.NGINX_SRC_DIR }}/libs  
-          # 使用关联数组存储已复制的库文件（基于inode）
-          declare -A copied_libs
-          # 获取并处理ldd输出
-          ldd ${{ env.NGINX_SRC_DIR }}/nginx | 
-            awk '\''NF >= 3 && $2 == "=>" && $3 ~ /^\// {print $3}'\'' |
-            while read -r LIB; do
-              # 跳过无效路径
-              if [ -z "$LIB" ] || [ ! -e "$LIB" ]; then
-                continue
-              fi
-              # 解析到最终的真实文件（递归解析符号链接）
-              REAL_LIB=$(readlink -f "$LIB")
-              if [ -z "$REAL_LIB" ] || [ ! -f "$REAL_LIB" ]; then
-                continue
-              fi
-              # 获取inode标识（避免重复复制）
-              INODE=$(stat -c "%i" "$REAL_LIB")
-              # 排除核心系统库
-              if [[ "$REAL_LIB" == /lib64/ld-linux* ]] || \
-                 [[ "$REAL_LIB" == */libc.so* ]] || \
-                 [[ "$REAL_LIB" == */libm.so* ]] || \
-                 [[ "$REAL_LIB" == */libpthread.so* ]] || \
-                 [[ "$REAL_LIB" == */libdl.so* ]] || \
-                 [[ "$REAL_LIB" == */libgcc_s.so* ]]; then
-                continue
-              fi
-              # 检查是否已复制过相同inode的文件
-              if [[ ! -v copied_libs["$INODE"] ]]; then
-                echo "Copying library: $(basename "$REAL_LIB")"
-                cp -v "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
-                copied_libs["$INODE"]=1
-              fi
-            done
-        '
-      
-    - name: Upload Nginx binary and build information to repository
-      uses: actions/upload-artifact@v4
-      with:
-        name: nginx-linux64-${{ env.NGINX_VERSION }}
-        path: |
-          ${{ github.workspace }}/nginx
-          ${{ github.workspace }}/libs/**
-          ${{ github.workspace }}/modules/**
-          ${{ github.workspace }}/nginx_build_info.txt
-        retention-days: 2
-        compression-level: 9
-        if-no-files-found: ignore
-      continue-on-error: true
+      - name: Upload Nginx binary and build information to repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: nginx-linux64-${{ env.NGINX_VERSION }}
+          path: |
+            ${{ github.workspace }}/nginx
+            ${{ github.workspace }}/libs/**
+            ${{ github.workspace }}/modules/**
+            ${{ github.workspace }}/nginx_build_info.txt
+          retention-days: 2
+          compression-level: 9
+          if-no-files-found: ignore
+        continue-on-error: true
