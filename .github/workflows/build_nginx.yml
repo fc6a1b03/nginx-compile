@@ -103,12 +103,12 @@ jobs:
       #            ln -s /usr/local/lib/libtcmalloc_minimal.so.4 /usr/lib/libtcmalloc_minimal.so.4
       #          "
 
-      - name: Clone and build google/tcmalloc (TCMalloc Next)
+      - name: Clone and build google/tcmalloc
         run: |
           docker exec build-nginx-container bash -c "
             cd ${{ env.NGINX_SRC_DIR }} && rm -rf tcmalloc &&
             git clone --depth 1 --recurse-submodules https://github.com/google/tcmalloc.git tcmalloc &&
-            cd tcmalloc && bazel build //tcmalloc:all && cp -av bazel-bin/tcmalloc/*.so* /usr/local/lib/ &&
+            cd tcmalloc && bazel build //tcmalloc:tcmalloc && cp -av bazel-bin/tcmalloc/*.so* /usr/local/lib/ &&
             ln -sf /usr/local/lib/libtcmalloc.so /usr/lib/libtcmalloc.so
           "
 
