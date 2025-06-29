@@ -52,7 +52,10 @@ jobs:
       - name: Update system and install base dependencies
         run: |
           docker exec build-nginx-container bash -c "
-            echo -e "fastestmirror=True\ndeltarpm=True\nmax_parallel_downloads=10\nkeepcache=True" >> /etc/dnf/dnf.conf
+            echo 'deltarpm=True' >> /etc/dnf/dnf.conf
+            echo 'keepcache=True' >> /etc/dnf/dnf.conf
+            echo 'fastestmirror=True' >> /etc/dnf/dnf.conf
+            echo 'max_parallel_downloads=10' >> /etc/dnf/dnf.conf
             dnf clean all
             dnf -y install dnf-plugins-core && dnf config-manager --set-enabled crb
             dnf -y install epel-release && dnf clean all
