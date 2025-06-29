@@ -64,8 +64,8 @@ jobs:
                 zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre perl-core perl-FindBin pcre-devel \
                 perl-IPC-Cmd perl-Test-Simple perl-Text-Template libaio libaio-devel brotli-devel glibc-headers \
                 glibc-devel libbsd-devel libxcrypt-compat libtool binutils binutils-gold ninja-build libbpf-devel \
-                libunwind-devel
-            dnf -y copr enable vbatts/bazel && dnf -y install bazel4
+                libunwind-devel pkgconf-pkg-config
+            dnf -y copr enable vbatts/bazel && dnf -y install bazel
           "
 
       - name: Clone OpenSSL repository
