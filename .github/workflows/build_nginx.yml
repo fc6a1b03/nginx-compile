@@ -49,15 +49,13 @@ jobs:
             -v "${{ github.workspace }}:${{ env.NGINX_SRC_DIR }}" \
             almalinux:9 tail -f /dev/null
 
-      - name: Update system and install base dependencies and Clean DNF cache
+      - name: Update system and install base dependencies
         run: |
           docker exec build-nginx-container bash -c "
-            echo -e "fastestmirror=True\ndeltarpm=True\nmax_parallel_downloads=10\nkeepcache=True" >> /etc/dnf/dnf.conf &&
-            dnf clean all &&
-            dnf -y install dnf-plugins-core
-            dnf config-manager --set-enabled crb &&
-            dnf -y install epel-release
-            dnf clean all &&
+            echo -e "fastestmirror=True\ndeltarpm=True\nmax_parallel_downloads=10\nkeepcache=True" >> /etc/dnf/dnf.conf
+            dnf clean all
+            dnf -y install dnf-plugins-core && dnf config-manager --set-enabled crb
+            dnf -y install epel-release && dnf clean all
             dnf makecache && dnf -y update && dnf -y groupinstall "Development Tools"
           "
           docker exec build-nginx-container bash -c "
@@ -67,10 +65,7 @@ jobs:
                 perl-IPC-Cmd perl-Test-Simple perl-Text-Template libaio libaio-devel brotli-devel glibc-headers \
                 glibc-devel libbsd-devel libxcrypt-compat libtool binutils binutils-gold ninja-build libbpf-devel \
                 libunwind-devel
-          "
-          docker exec build-nginx-container bash -c "
-            dnf copr enable vbatts/bazel &&
-            dnf -y install bazel4
+            dnf -y copr enable vbatts/bazel && dnf -y install bazel4
           "
 
       - name: Clone OpenSSL repository
