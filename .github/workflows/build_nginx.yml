@@ -56,7 +56,7 @@ jobs:
             dnf clean all &&
             dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
                 --setopt=max_parallel_downloads=10 --setopt=keepcache=True install dnf-plugins-core
-            dnf config-manager --set-enabled crb && dnf copr enable vbatts/bazel &&
+            dnf config-manager --set-enabled crb &&
             dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True \
                 --setopt=max_parallel_downloads=10 --setopt=keepcache=True install epel-release
             dnf clean all &&
@@ -74,6 +74,10 @@ jobs:
                 pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd perl-Test-Simple perl-Text-Template \
                 libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel libxcrypt-compat libtool binutils \
                 binutils-gold ninja-build libbpf-devel libunwind-devel bazel4
+          "
+          docker exec build-nginx-container bash -c "
+            dnf copr enable vbatts/bazel &&
+            dnf -y --setopt=fastestmirror=True --setopt=deltarpm=True --setopt=max_parallel_downloads=10 --setopt=keepcache=True install bazel4
           "
 
       - name: Clone OpenSSL repository
