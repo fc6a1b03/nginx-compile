@@ -43,7 +43,6 @@ jobs:
 
       - name: Pull Docker image for chosen system and Start Docker container
         run: |
-          sudo apt-get -qq update
           sudo apt-get -qq -y install docker-ce
           sudo docker pull -q almalinux:9
           sudo docker run -d --name build-nginx-container \
