@@ -68,7 +68,13 @@ jobs:
                 perl-IPC-Cmd perl-Test-Simple perl-Text-Template libaio libaio-devel brotli-devel glibc-headers \
                 glibc-devel libbsd-devel libxcrypt-compat libtool binutils binutils-gold ninja-build libbpf-devel \
                 libunwind-devel pkgconf-pkg-config
-            dnf -y copr enable vbatts/bazel && dnf -y install bazel
+          "
+
+      - name: Install bazel dependencies
+        run: |
+          docker exec build-nginx-container bash -c "
+            curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 -o /usr/local/bin/bazel && chmod +x /usr/local/bin/bazel
+            bazel --version
           "
 
       - name: Clone OpenSSL repository
@@ -87,24 +93,24 @@ jobs:
             make -j$(nproc) && make install
           "
 
-      - name: Clone and build tcmalloc_minimal
-        run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf gperftools &&
-            git clone --depth 1 --recurse-submodules https://github.com/gperftools/gperftools.git gperftools &&
-            cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker CXXFLAGS='-O3 -fPIC' &&
-            make -j$(nproc) && make install &&
-            ln -s /usr/local/lib/libtcmalloc_minimal.so.4 /usr/lib/libtcmalloc_minimal.so.4
-          "
-
-      #      - name: Clone and build google/tcmalloc (TCMalloc Next)
+      #      - name: Clone and build tcmalloc_minimal
       #        run: |
       #          docker exec build-nginx-container bash -c "
-      #            cd ${{ env.NGINX_SRC_DIR }} && rm -rf tcmalloc &&
-      #            git clone --depth 1 --recurse-submodules https://github.com/google/tcmalloc.git tcmalloc &&
-      #            cd tcmalloc && bazel build //tcmalloc:all && cp -av bazel-bin/tcmalloc/*.so* /usr/local/lib/ &&
-      #            ln -sf /usr/local/lib/libtcmalloc.so /usr/lib/libtcmalloc.so
+      #            cd ${{ env.NGINX_SRC_DIR }} && rm -rf gperftools &&
+      #            git clone --depth 1 --recurse-submodules https://github.com/gperftools/gperftools.git gperftools &&
+      #            cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker CXXFLAGS='-O3 -fPIC' &&
+      #            make -j$(nproc) && make install &&
+      #            ln -s /usr/local/lib/libtcmalloc_minimal.so.4 /usr/lib/libtcmalloc_minimal.so.4
       #          "
+
+      - name: Clone and build google/tcmalloc (TCMalloc Next)
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf tcmalloc &&
+            git clone --depth 1 --recurse-submodules https://github.com/google/tcmalloc.git tcmalloc &&
+            cd tcmalloc && bazel build //tcmalloc:all && cp -av bazel-bin/tcmalloc/*.so* /usr/local/lib/ &&
+            ln -sf /usr/local/lib/libtcmalloc.so /usr/lib/libtcmalloc.so
+          "
 
       - name: Clone ngx_brotli module
         run: |
@@ -193,7 +199,7 @@ jobs:
                 --add-module=../ngx_brotli \
                 --with-openssl=../openssl \
                 --add-dynamic-module=../ngx_http_geoip2_module \
-                --with-ld-opt="-ltcmalloc_minimal -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2" \
+                --with-ld-opt="-ltcmalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2" \
                 --with-openssl-opt='-O3 -march=native enable-ec_nistp_64_gcc_128 enable-asm enable-aesni enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3' \
                 --with-cc-opt='-O3 -march=native -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -fprofile-use -pipe -Wl,--gc-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1'
           "
