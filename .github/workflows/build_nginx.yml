@@ -73,7 +73,7 @@ jobs:
                 nano wget psmisc go automake gcc gcc-c++ kernel-devel git make cmake tar autoconf zlib zlib-devel openssl openssl-devel bzip2 bzip2-devel \
                 pcre perl-core perl-FindBin pcre-devel perl-IPC-Cmd perl-Test-Simple perl-Text-Template \
                 libaio libaio-devel brotli-devel glibc-headers glibc-devel libbsd-devel libxcrypt-compat libtool binutils \
-                binutils-gold ninja-build libbpf-devel libunwind-devel
+                binutils-gold ninja-build libbpf-devel libunwind-devel bazel4
           "
 
       - name: Clone OpenSSL repository
@@ -107,9 +107,7 @@ jobs:
           docker exec build-nginx-container bash -c "
             cd ${{ env.NGINX_SRC_DIR }} && rm -rf tcmalloc &&
             git clone --depth 1 --recurse-submodules https://github.com/google/tcmalloc.git tcmalloc &&
-            cd tcmalloc && mkdir -p build && cd build &&
-            cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_CXX_FLAGS="-O3 -march=native -funroll-loops" &&
-            make -j$(nproc) && make install &&
+            cd tcmalloc && bazel build //tcmalloc:all && cp -av bazel-bin/tcmalloc/*.so* /usr/local/lib/ &&
             ln -sf /usr/local/lib/libtcmalloc.so /usr/lib/libtcmalloc.so
           "
 
@@ -173,7 +171,6 @@ jobs:
       - name: Configure Nginx
         run: |
           docker exec build-nginx-container bash -c "
-            if [ -f ~/.bashrc ]; then source ~/.bashrc; fi
             ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
             ./configure --prefix=${{ env.PREFIX }} \
                 --with-compat \
@@ -209,7 +206,6 @@ jobs:
       - name: Build Nginx
         run: |
           docker exec build-nginx-container bash -c "
-            if [ -f ~/.bashrc ]; then source ~/.bashrc; fi
             ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
             make -j$(nproc) &&
             objs/nginx -V &> ${{ env.NGINX_SRC_DIR }}/nginx_build_info.txt &&
