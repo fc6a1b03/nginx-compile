@@ -56,7 +56,6 @@ jobs:
             echo 'keepcache=True' >> /etc/dnf/dnf.conf
             echo 'fastestmirror=True' >> /etc/dnf/dnf.conf
             echo 'max_parallel_downloads=10' >> /etc/dnf/dnf.conf
-            echo "/usr/local/lib" | tee /etc/ld.so.conf.d/base_dependencies.conf
             dnf clean all
             dnf -y install dnf-plugins-core && dnf config-manager --set-enabled crb
             dnf -y install epel-release && dnf clean all
@@ -100,7 +99,7 @@ jobs:
       #            cd ${{ env.NGINX_SRC_DIR }} && rm -rf gperftools &&
       #            git clone --depth 1 --recurse-submodules https://github.com/gperftools/gperftools.git gperftools &&
       #            cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker CXXFLAGS='-O3 -fPIC' &&
-      #            make -j$(nproc) && make install &&
+      #            make -j$(nproc) && make install
       #          "
 
       - name: Clone and build google/tcmalloc
@@ -110,7 +109,7 @@ jobs:
             git clone --depth 1 --recurse-submodules https://github.com/google/tcmalloc.git tcmalloc &&
             cd tcmalloc && bazel build --jobs=$(nproc) //tcmalloc:tcmalloc &&
             cd bazel-bin/tcmalloc/ && ar x libtcmalloc.lo && gcc -shared -Wl,-soname,libtcmalloc.so -o libtcmalloc.so *.o &&
-            cp libtcmalloc.so /usr/local/lib/libtcmalloc.so
+            cp libtcmalloc.so /usr/local/lib/libtcmalloc.so && ln -s /usr/local/lib/libtcmalloc.so /usr/lib/libtcmalloc.so
           "
 
       - name: Clone ngx_brotli module
