@@ -19,10 +19,23 @@ on:
         default: "/usr/local/nginx"
         description: "Specify the installation prefix"
       enable_geoip2:
-        type: string
+        type: choice
         required: true
         default: "no"
         description: 'Enable Geoip2 Download'
+        options:
+          - yes
+          - no
+      target_arch:
+        type: choice
+        required: true
+        default: "native"
+        description: "Target microarchitecture level (ld.so --help 2>&1 | grep -E \"(x86-64-v[2-4]|supported)\")"
+        options:
+          - x86-64-v2
+          - x86-64-v3
+          - x86-64-v4
+          - native
 
 jobs:
   build-nginx:
@@ -30,6 +43,7 @@ jobs:
     env:
       NGINX_SRC_DIR: "/opt/nginx"
       PREFIX: ${{ github.event.inputs.prefix }}
+      TARGET_ARCH: ${{ github.event.inputs.target_arch }}
       ENABLE_GEOIP2: ${{ github.event.inputs.enable_geoip2 }}
       NGINX_VERSION: ${{ github.event.inputs.nginx_version }}
       OPENSSL_VERSION: ${{ github.event.inputs.openssl_version }}
@@ -158,7 +172,26 @@ jobs:
       - name: Configure Nginx
         run: |
           docker exec build-nginx-container bash -c "
-            ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
+            ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }}
+            # 架构特定优化映射
+            case '${{ env.TARGET_ARCH }}' in
+              x86-64-v2)
+                TUNE_FLAGS='-mtune=generic'
+                ;;
+              x86-64-v3)
+                TUNE_FLAGS='-mtune=haswell'  # 或 generic，但haswell更优
+                ;;
+              x86-64-v4)
+                TUNE_FLAGS='-mtune=sapphirerapids'  # 或 znver4 for AMD
+                ;;
+              native)
+                TUNE_FLAGS='-mtune=native'
+                ;;
+              *)
+                echo 'Unknown architecture: ${{ env.TARGET_ARCH }}' && exit 1
+                ;;
+            esac
+            # 配置 nginx 构建参数
             ./configure --prefix=${{ env.PREFIX }} \
                 --with-compat \
                 --with-threads \
@@ -185,9 +218,9 @@ jobs:
                 --add-module=../ngx_brotli \
                 --with-openssl=../openssl \
                 --add-dynamic-module=../ngx_http_geoip2_module \
-                --with-ld-opt="-ljemalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2" \
-                --with-openssl-opt='-O3 -march=native enable-ec_nistp_64_gcc_128 enable-asm enable-aesni enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3' \
-                --with-cc-opt='-O3 -march=native -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -fprofile-use -pipe -Wl,--gc-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1'
+                --with-ld-opt='-ljemalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2' \
+                --with-openssl-opt='-O3 -march=${{ env.TARGET_ARCH }} -funroll-loops -fpeel-loops -ftracer -fomit-frame-pointer -finline-functions -ffunction-sections -fdata-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3 -D_FORTIFY_SOURCE=3 ${{ env.TARGET_ARCH == 'x86-64-v3' && 'enable-ec_nistp_64_gcc_128' || '' }} enable-asm enable-aesni enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers no-tls-deprecated-ec' \
+                --with-cc-opt='-O3 -march=${{ env.TARGET_ARCH }} \${TUNE_FLAGS} -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -pipe -Wl,--gc-sections -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1 -fstack-clash-protection -fcf-protection -ftrivial-auto-var-init=zero'
           "
 
       - name: Build Nginx
@@ -239,6 +272,38 @@ jobs:
               done
           '
 
+      - name: Validate Architecture Target
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} &&
+            echo '=== Target Architecture: ${{ env.TARGET_ARCH }} ===' &&
+            # 检查二进制文件使用的指令集
+            if command -v readelf >/dev/null; then
+              echo '=== ELF Header ===' &&
+              readelf -h ./nginx | grep 'Machine\|Class' &&
+              
+              echo '=== Checking for AVX2 (x86-64-v3) ===' &&
+              if objdump -d ./nginx | grep -q 'ymm'; then
+                echo '✓ AVX2 (256-bit) instructions detected'
+              else
+                echo '✗ No AVX2 instructions found'
+              fi &&
+              
+              echo '=== Checking for AVX-512 (x86-64-v4) ===' &&
+              if objdump -d ./nginx | grep -q 'zmm'; then
+                echo '✓ AVX-512 (512-bit) instructions detected'
+              else
+                echo '✗ No AVX-512 instructions found'
+              fi
+            fi &&
+            # 生成构建报告
+            echo '=== Build Report ===' > ${{ env.NGINX_SRC_DIR }}/build_report.txt &&
+            echo 'Nginx: ${{ env.NGINX_VERSION }}' >> ${{ env.NGINX_SRC_DIR }}/build_report.txt &&
+            echo 'OpenSSL: ${{ env.OPENSSL_VERSION }}' >> ${{ env.NGINX_SRC_DIR }}/build_report.txt &&
+            echo 'Target Arch: ${{ env.TARGET_ARCH }}' >> ${{ env.NGINX_SRC_DIR }}/build_report.txt &&
+            echo 'Build Date: $(date -Iseconds)' >> ${{ env.NGINX_SRC_DIR }}/build_report.txt
+          "
+      
       - name: Upload Nginx binary and build information to repository
         uses: actions/upload-artifact@v4
         with:
@@ -247,6 +312,7 @@ jobs:
             ${{ github.workspace }}/nginx
             ${{ github.workspace }}/libs/**
             ${{ github.workspace }}/modules/**
+            ${{ github.workspace }}/build_report.txt
             ${{ github.workspace }}/nginx_build_info.txt
           retention-days: 2
           compression-level: 9
