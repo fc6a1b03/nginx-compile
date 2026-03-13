@@ -333,5 +333,5 @@ jobs:
           path: |
             ${{ github.workspace }}/nginx-full-linux64.tar.gz
           retention-days: 7
-          compression-level: 0  # 已经压缩过了
+          compression-level: 0
           if-no-files-found: error
