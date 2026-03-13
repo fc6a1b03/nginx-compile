@@ -64,7 +64,7 @@ jobs:
                 zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre perl-core perl-FindBin pcre-devel \
                 perl-IPC-Cmd perl-Test-Simple perl-Text-Template libaio libaio-devel brotli-devel glibc-headers \
                 glibc-devel libbsd-devel libxcrypt-compat libtool binutils binutils-gold ninja-build libbpf-devel \
-                libunwind-devel pkgconf-pkg-config patchelf
+                libunwind-devel pkgconf-pkg-config patchelf lld lld-devel liburing liburing-devel numactl-libs numactl-devel
           "
 
       - name: Install bazel dependencies
