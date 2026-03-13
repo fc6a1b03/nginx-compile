@@ -64,7 +64,7 @@ jobs:
                 zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre perl-core perl-FindBin pcre-devel \
                 perl-IPC-Cmd perl-Test-Simple perl-Text-Template libaio libaio-devel brotli-devel glibc-headers \
                 glibc-devel libbsd-devel libxcrypt-compat libtool binutils binutils-gold ninja-build libbpf-devel \
-                libunwind-devel pkgconf-pkg-config patchelf
+                libunwind-devel pkgconf-pkg-config
           "
 
       - name: Install bazel dependencies
@@ -203,83 +203,40 @@ jobs:
       - name: Bundle shared libraries and fix RPATH
         run: |
           docker exec build-nginx-container bash -c '
-            ldconfig && rm -rf ${{ env.NGINX_SRC_DIR }}/libs && mkdir -p ${{ env.NGINX_SRC_DIR }}/libs
-            
-            # 使用文件记录已复制的inode（避免子shell问题）
-            PROCESSED_FILE="/tmp/libs_processed_$$"
-            touch "$PROCESSED_FILE"
-            
-            # 递归收集依赖函数
-            collect_deps() {
-                local binary="$1"
-                local lib real_lib inode base soname
-                
-                ldd "$binary" 2>/dev/null | awk "NF >= 3 && \$2 == \"=>\" && \$3 ~ /^\\// {print \$3}" | while read -r lib; do
-                    [ -z "$lib" ] || [ ! -e "$lib" ] && continue
-                    
-                    real_lib=$(readlink -f "$lib")
-                    [ -z "$real_lib" ] || [ ! -f "$real_lib" ] && continue
-                    
-                    # 基于inode去重
-                    inode=$(stat -c "%i" "$real_lib")
-                    if grep -q "^${inode}$" "$PROCESSED_FILE" 2>/dev/null; then
-                        continue
-                    fi
-                    echo "$inode" >> "$PROCESSED_FILE"
-                    
-                    base=$(basename "$real_lib")
-                    
-                    # 排除核心系统库
-                    if [[ "$real_lib" == /lib64/ld-linux* ]] || \
-                       [[ "$real_lib" == */libc.so* ]] || \
-                       [[ "$real_lib" == */libm.so* ]] || \
-                       [[ "$real_lib" == */libpthread.so* ]] || \
-                       [[ "$real_lib" == */libdl.so* ]] || \
-                       [[ "$real_lib" == */librt.so* ]] || \
-                       [[ "$real_lib" == */libcrypt.so* ]] || \
-                       [[ "$real_lib" == */libgcc_s.so* ]]; then
-                        continue
-                    fi
-                    
-                    echo "Copying library: $base (needed by $(basename "$binary"))"
-                    cp -v "$real_lib" "${{ env.NGINX_SRC_DIR }}/libs/"
-                    
-                    # 创建SONAME符号链接（保持版本兼容性）
-                    soname=$(objdump -p "$real_lib" 2>/dev/null | grep SONAME | awk "{print \$2}")
-                    if [ -n "$soname" ] && [ "$soname" != "$base" ]; then
-                        (cd ${{ env.NGINX_SRC_DIR }}/libs/ && ln -sf "$base" "$soname" 2>/dev/null || true)
-                    fi
-                    
-                    # 递归收集此库的依赖（解决间接依赖如jemalloc）
-                    collect_deps "$real_lib"
-                done
-            }
-            
-            echo "=== Phase 1: Collecting from nginx ==="
-            collect_deps ${{ env.NGINX_SRC_DIR }}/nginx
-            
-            echo "=== Phase 2: Collecting indirect dependencies ==="
-            # 再次扫描libs目录中新增的库，确保二级/三级依赖也被收集
-            for lib in ${{ env.NGINX_SRC_DIR }}/libs/*.so*; do
-                [ -f "$lib" ] && collect_deps "$lib"
-            done
-            
-            echo "=== Phase 3: Fixing RPATH ==="
-            # 设置nginx的RPATH为$ORIGIN/libs，确保优先使用打包的库
-            patchelf --set-rpath "$ORIGIN/libs" --force-rpath ${{ env.NGINX_SRC_DIR }}/nginx
-            
-            # 为动态模块设置RPATH
-            for mod in ${{ env.NGINX_SRC_DIR }}/modules/*.so; do
-                if [ -f "$mod" ]; then
-                    patchelf --set-rpath "$ORIGIN/libs:$ORIGIN/../libs" --force-rpath "$mod" 2>/dev/null || true
+            ldconfig && rm -rf ${{ env.NGINX_SRC_DIR }}/libs && mkdir -p ${{ env.NGINX_SRC_DIR }}/libs  
+            # 使用关联数组存储已复制的库文件（基于inode）
+            declare -A copied_libs
+            # 获取并处理ldd输出
+            ldd ${{ env.NGINX_SRC_DIR }}/nginx | 
+              awk '\''NF >= 3 && $2 == "=>" && $3 ~ /^\// {print $3}'\'' |
+              while read -r LIB; do
+                # 跳过无效路径
+                if [ -z "$LIB" ] || [ ! -e "$LIB" ]; then
+                  continue
                 fi
-            done
-            
-            # 清理临时文件
-            rm -f "$PROCESSED_FILE"
-            
-            echo "=== Final collected libraries ==="
-            ls -la ${{ env.NGINX_SRC_DIR }}/libs/
+                # 解析到最终的真实文件（递归解析符号链接）
+                REAL_LIB=$(readlink -f "$LIB")
+                if [ -z "$REAL_LIB" ] || [ ! -f "$REAL_LIB" ]; then
+                  continue
+                fi
+                # 获取inode标识（避免重复复制）
+                INODE=$(stat -c "%i" "$REAL_LIB")
+                # 排除核心系统库
+                if [[ "$REAL_LIB" == /lib64/ld-linux* ]] || \
+                   [[ "$REAL_LIB" == */libc.so* ]] || \
+                   [[ "$REAL_LIB" == */libm.so* ]] || \
+                   [[ "$REAL_LIB" == */libpthread.so* ]] || \
+                   [[ "$REAL_LIB" == */libdl.so* ]] || \
+                   [[ "$REAL_LIB" == */libgcc_s.so* ]]; then
+                  continue
+                fi
+                # 检查是否已复制过相同inode的文件
+                if [[ ! -v copied_libs["$INODE"] ]]; then
+                  echo "Copying library: $(basename "$REAL_LIB")"
+                  cp -v "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
+                  copied_libs["$INODE"]=1
+                fi
+              done
           '
 
       - name: Upload Nginx binary and build information to repository
