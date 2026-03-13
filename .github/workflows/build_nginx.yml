@@ -6,12 +6,12 @@ on:
       nginx_version:
         type: string
         required: true
-        default: "1.29.0"
+        default: "1.29.6"
         description: "Specify the nginx version"
       openssl_version:
         type: string
         required: true
-        default: "openssl-3.5.0"
+        default: "openssl-3.6.0"
         description: "Specify the openssl version"
       prefix:
         type: string
