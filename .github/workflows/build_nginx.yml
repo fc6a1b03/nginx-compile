@@ -1,4 +1,4 @@
-name: Build Nginx Based
+name: Build Nginx Static
 
 on:
   workflow_dispatch:
@@ -11,8 +11,8 @@ on:
       openssl_version:
         type: string
         required: true
-        default: "openssl-3.5.0"
-        description: "Specify the openssl version"
+        default: "openssl-3.4.0"
+        description: "Specify the openssl version (avoid 3.6.x which may have jemalloc deps)"
       prefix:
         type: string
         required: true
@@ -22,9 +22,6 @@ on:
         type: string
         required: true
         default: "no"
-        options:
-          - 'yes'
-          - 'no'
         description: 'Enable Geoip2 Download'
 
 jobs:
@@ -59,7 +56,7 @@ jobs:
             dnf clean all
             dnf -y install dnf-plugins-core && dnf config-manager --set-enabled crb
             dnf -y install epel-release && dnf clean all
-            dnf makecache && dnf -y update && dnf -y groupinstall "Development Tools"
+            dnf makecache && dnf -y update && dnf -y groupinstall 'Development Tools'
           "
           docker exec build-nginx-container bash -c "
             dnf -y install \
@@ -67,7 +64,7 @@ jobs:
                 zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre perl-core perl-FindBin pcre-devel \
                 perl-IPC-Cmd perl-Test-Simple perl-Text-Template libaio libaio-devel brotli-devel glibc-headers \
                 glibc-devel libbsd-devel libxcrypt-compat libtool binutils binutils-gold ninja-build libbpf-devel \
-                libunwind-devel pkgconf-pkg-config
+                libunwind-devel pkgconf-pkg-config patchelf
           "
 
       - name: Install bazel dependencies
@@ -101,6 +98,8 @@ jobs:
             cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker CXXFLAGS='-O3 -fPIC' &&
             make -j$(nproc) && make install
             ln -s /usr/local/lib/libtcmalloc_minimal.so.4 /usr/lib/libtcmalloc_minimal.so.4
+            ln -s /usr/local/lib/libtcmalloc_minimal.so.4 /usr/lib/libtcmalloc_minimal.so
+            ldconfig
           "
 
       - name: Clone ngx_brotli module
@@ -131,7 +130,7 @@ jobs:
           docker exec build-nginx-container bash -c "
             cd ${{ env.NGINX_SRC_DIR }} && rm -rf pcre2 &&
             git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
-            cd pcre2 && ./autogen.sh && ./configure && make -j$(nproc) && make install
+            cd pcre2 && ./autogen.sh && ./configure --enable-jit && make -j$(nproc) && make install
           "
 
       - name: Clone ngx_http_geoip2_module
@@ -154,7 +153,7 @@ jobs:
         run: |
           docker exec build-nginx-container bash -c "
             cd ${{ env.NGINX_SRC_DIR }} && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }} &&
-            curl -L -o "nginx-${{ env.NGINX_VERSION }}.tar.gz" "https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz" &&
+            curl -L -o 'nginx-${{ env.NGINX_VERSION }}.tar.gz' 'https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz' &&
             tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz
           "
 
@@ -188,9 +187,9 @@ jobs:
                 --add-module=../ngx_brotli \
                 --with-openssl=../openssl \
                 --add-dynamic-module=../ngx_http_geoip2_module \
-                --with-ld-opt="-ltcmalloc_minimal -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2" \
-                --with-openssl-opt='-O3 -march=native enable-ec_nistp_64_gcc_128 enable-asm enable-aesni enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3' \
-                --with-cc-opt='-O3 -march=native -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -fprofile-use -pipe -Wl,--gc-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1'
+                --with-ld-opt='-ltcmalloc_minimal -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2' \
+                --with-openssl-opt='no-shared -O3 -march=native enable-ec_nistp_64_gcc_128 enable-asm enable-aesni enable-avx2 enable-ktls enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3' \
+                --with-cc-opt='-O3 -march=native -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -pipe -Wl,--gc-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1'
           "
 
       - name: Build Nginx
@@ -200,58 +199,139 @@ jobs:
             make -j$(nproc) &&
             objs/nginx -V &> ${{ env.NGINX_SRC_DIR }}/nginx_build_info.txt &&
             mv objs/nginx ${{ env.NGINX_SRC_DIR }}/ &&
-            mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
+            mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules || true
           "
 
-      - name: Bundle shared libraries and fix RPATH
+      - name: Bundle shared libraries recursively and fix RPATH
         run: |
           docker exec build-nginx-container bash -c '
-            ldconfig && rm -rf ${{ env.NGINX_SRC_DIR }}/libs && mkdir -p ${{ env.NGINX_SRC_DIR }}/libs  
-            # 使用关联数组存储已复制的库文件（基于inode）
-            declare -A copied_libs
-            # 获取并处理ldd输出
-            ldd ${{ env.NGINX_SRC_DIR }}/nginx | 
-              awk '\''NF >= 3 && $2 == "=>" && $3 ~ /^\// {print $3}'\'' |
-              while read -r LIB; do
-                # 跳过无效路径
-                if [ -z "$LIB" ] || [ ! -e "$LIB" ]; then
-                  continue
+            set -e
+            LIBS_DIR="${{ env.NGINX_SRC_DIR }}/libs"
+            rm -rf "$LIBS_DIR" && mkdir -p "$LIBS_DIR"
+            
+            PROCESSED_FILE="/tmp/libs_processed_$$"
+            touch "$PROCESSED_FILE"
+            
+            # 函数：递归收集依赖
+            collect_deps() {
+                local binary="$1"
+                local dep
+                local real_lib
+                local inode
+                local soname
+                
+                ldd "$binary" 2>/dev/null | awk "NF>=3 && \$2==\"=>\" && \$3 ~ /^\\// {print \$3}" | while read -r dep; do
+                    [ -z "$dep" ] && continue
+                    [ ! -e "$dep" ] && continue
+                    
+                    real_lib=$(readlink -f "$dep")
+                    [ ! -f "$real_lib" ] && continue
+                    
+                    inode=$(stat -c "%i" "$real_lib")
+                    
+                    # 检查是否已处理过
+                    if grep -q "^${inode}$" "$PROCESSED_FILE" 2>/dev/null; then
+                        continue
+                    fi
+                    echo "$inode" >> "$PROCESSED_FILE"
+                    
+                    local base=$(basename "$real_lib")
+                    
+                    # 排除核心系统库（这些Rocky/AlmaLinux一定有）
+                    case "$real_lib" in
+                        /lib64/ld-linux* | /lib/ld-linux*) continue ;;
+                        /lib*/libc.so* | /usr/lib*/libc.so*) continue ;;
+                        /lib*/libm.so* | /usr/lib*/libm.so*) continue ;;
+                        /lib*/libpthread.so* | /usr/lib*/libpthread.so*) continue ;;
+                        /lib*/libdl.so* | /usr/lib*/libdl.so*) continue ;;
+                        /lib*/librt.so* | /usr/lib*/librt.so*) continue ;;
+                        /lib*/libcrypt.so* | /usr/lib*/libcrypt.so*) continue ;;
+                        /lib*/libgcc_s.so* | /usr/lib*/libgcc_s.so*) continue ;;
+                        /lib*/ld-linux*.so*) continue ;;
+                    esac
+                    
+                    echo "Collecting: $base (needed by $(basename "$binary"))"
+                    cp -Lv "$real_lib" "$LIBS_DIR/"
+                    
+                    # 创建 SONAME 符号链接
+                    soname=$(objdump -p "$real_lib" | grep SONAME | awk "{print \$2}")
+                    if [ -n "$soname" ] && [ "$soname" != "$base" ]; then
+                        (cd "$LIBS_DIR" && ln -sf "$base" "$soname" 2>/dev/null || true)
+                    fi
+                    
+                    # 递归收集此库的依赖
+                    collect_deps "$real_lib"
+                done
+            }
+            
+            echo "=== Collecting dependencies recursively ==="
+            # 1. 收集 nginx 直接依赖
+            collect_deps "${{ env.NGINX_SRC_DIR }}/nginx"
+            
+            # 2. 收集所有刚放入 libs 的库（间接依赖）
+            for lib in "$LIBS_DIR"/*.so*; do
+                [ -f "$lib" ] && collect_deps "$lib"
+            done
+            
+            echo "=== Final library collection ==="
+            ls -lh "$LIBS_DIR/"
+            
+            echo "=== Setting RPATH for nginx ==="
+            # 设置 RPATH 为 $ORIGIN/libs，确保运行时优先查找打包的库
+            patchelf --set-rpath "\$ORIGIN/libs" --force-rpath "${{ env.NGINX_SRC_DIR }}/nginx"
+            patchelf --print-rpath "${{ env.NGINX_SRC_DIR }}/nginx"
+            
+            # 修复动态模块的 RPATH
+            for mod in "${{ env.NGINX_SRC_DIR }}/modules/"*.so; do
+                if [ -f "$mod" ]; then
+                    patchelf --set-rpath "\$ORIGIN/libs:\$ORIGIN/../libs" --force-rpath "$mod" 2>/dev/null || true
                 fi
-                # 解析到最终的真实文件（递归解析符号链接）
-                REAL_LIB=$(readlink -f "$LIB")
-                if [ -z "$REAL_LIB" ] || [ ! -f "$REAL_LIB" ]; then
-                  continue
-                fi
-                # 获取inode标识（避免重复复制）
-                INODE=$(stat -c "%i" "$REAL_LIB")
-                # 排除核心系统库
-                if [[ "$REAL_LIB" == /lib64/ld-linux* ]] || \
-                   [[ "$REAL_LIB" == */libc.so* ]] || \
-                   [[ "$REAL_LIB" == */libm.so* ]] || \
-                   [[ "$REAL_LIB" == */libpthread.so* ]] || \
-                   [[ "$REAL_LIB" == */libdl.so* ]] || \
-                   [[ "$REAL_LIB" == */libgcc_s.so* ]]; then
-                  continue
-                fi
-                # 检查是否已复制过相同inode的文件
-                if [[ ! -v copied_libs["$INODE"] ]]; then
-                  echo "Copying library: $(basename "$REAL_LIB")"
-                  cp -v "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
-                  copied_libs["$INODE"]=1
-                fi
-              done
+            done
+            
+            # 清理临时文件
+            rm -f "$PROCESSED_FILE"
           '
 
-      - name: Upload Nginx binary and build information to repository
+      - name: Verify binary dependencies
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} &&
+            echo '=== Nginx linked dependencies ===' &&
+            ldd ./nginx &&
+            echo '' &&
+            echo '=== Checking for unresolved dependencies ===' &&
+            if ldd ./nginx 2>/dev/null | grep -q 'not found'; then
+                echo 'ERROR: Unresolved dependencies found:' &&
+                ldd ./nginx | grep 'not found' &&
+                exit 1
+            else
+                echo 'All dependencies resolved successfully'
+            fi &&
+            echo '' &&
+            echo '=== Checking for jemalloc (should not exist) ===' &&
+            if ldd ./nginx 2>/dev/null | grep -i jemalloc; then
+                echo 'WARNING: jemalloc dependency detected!'
+            else
+                echo 'Good: No jemalloc dependency'
+            fi &&
+            echo '' &&
+            echo '=== Testing nginx binary execution ===' &&
+            ./nginx -V
+          "
+
+      - name: Package artifact
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} &&
+            tar -czvf nginx-full-linux64.tar.gz nginx libs/ modules/ nginx_build_info.txt
+          "
+
+      - name: Upload Nginx binary and build information
         uses: actions/upload-artifact@v4
         with:
           name: nginx-linux64-${{ env.NGINX_VERSION }}
           path: |
-            ${{ github.workspace }}/nginx
-            ${{ github.workspace }}/libs/**
-            ${{ github.workspace }}/modules/**
-            ${{ github.workspace }}/nginx_build_info.txt
-          retention-days: 2
-          compression-level: 9
-          if-no-files-found: ignore
-        continue-on-error: true
+            ${{ github.workspace }}/nginx-full-linux64.tar.gz
+          retention-days: 7
+          compression-level: 0  # 已经压缩过了
+          if-no-files-found: error
