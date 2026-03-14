@@ -26,16 +26,6 @@ on:
         options:
           - yes
           - no
-      target_arch:
-        type: choice
-        required: true
-        default: "native"
-        description: "Target microarchitecture level"
-        options:
-          - x86-64-v2
-          - x86-64-v3
-          - x86-64-v4
-          - native
 
 jobs:
   build-nginx:
@@ -43,7 +33,6 @@ jobs:
     env:
       NGINX_SRC_DIR: "/opt/nginx"
       PREFIX: ${{ github.event.inputs.prefix }}
-      TARGET_ARCH: ${{ github.event.inputs.target_arch }}
       ENABLE_GEOIP2: ${{ github.event.inputs.enable_geoip2 }}
       NGINX_VERSION: ${{ github.event.inputs.nginx_version }}
       OPENSSL_VERSION: ${{ github.event.inputs.openssl_version }}
@@ -161,7 +150,7 @@ jobs:
 
       - name: Configure Nginx
         run: |
-          docker exec build-nginx-container bash -c "
+          docker exec build-nginx-container bash -c '
             ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
             ./configure --prefix=${{ env.PREFIX }} \
                 --with-compat \
@@ -189,10 +178,10 @@ jobs:
                 --add-module=../ngx_brotli \
                 --with-openssl=../openssl \
                 --add-dynamic-module=../ngx_http_geoip2_module \
-                --with-ld-opt='-ljemalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2' \
-                --with-openssl-opt='-O3 -march=${{ env.TARGET_ARCH }} enable-ec_nistp_64_gcc_128 enable-asm enable-aesni enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3' \
-                --with-cc-opt='-O3 -march=${{ env.TARGET_ARCH }} -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -fprofile-use -pipe -Wl,--gc-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1'
-          "
+                --with-ld-opt="-ljemalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2" \
+                --with-openssl-opt="-O3 -march=native enable-ec_nistp_64_gcc_128 enable-asm enable-aesni enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3" \
+                --with-cc-opt="-O3 -march=native -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -fprofile-use -pipe -Wl,--gc-sections -pipe -flto=thin -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1"
+          '
 
       - name: Build Nginx
         run: |
@@ -235,7 +224,7 @@ jobs:
       - name: Upload Nginx binary and build information
         uses: actions/upload-artifact@v7
         with:
-          name: nginx-linux64-${{ env.NGINX_VERSION }}-${{ env.TARGET_ARCH }}
+          name: nginx-linux64-${{ env.NGINX_VERSION }}
           path: |
             ${{ github.workspace }}/nginx
             ${{ github.workspace }}/libs/**
