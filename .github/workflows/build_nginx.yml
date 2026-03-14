@@ -11,7 +11,7 @@ on:
       openssl_version:
         type: string
         required: true
-        default: "openssl-3.6.0"
+        default: "openssl-3.6.1"
         description: "Specify the openssl version"
       prefix:
         type: string
@@ -47,142 +47,244 @@ jobs:
       ENABLE_GEOIP2: ${{ github.event.inputs.enable_geoip2 }}
       NGINX_VERSION: ${{ github.event.inputs.nginx_version }}
       OPENSSL_VERSION: ${{ github.event.inputs.openssl_version }}
+      # geoip2_sync.sh 配置
+      VERBOSE: "false"
+      NO_FAIL: "true"
+      SKIP_EXISTING: "true"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Pull Docker image for chosen system and Start Docker container
+      - name: Pull Docker image and Start container
         run: |
           sudo apt-get -qq -y install docker-ce
           sudo docker pull -q almalinux:9
           sudo docker run -d --name build-nginx-container \
             -v "${{ github.workspace }}:${{ env.NGINX_SRC_DIR }}" \
+            -e VERBOSE="${{ env.VERBOSE }}" \
+            -e NO_FAIL="${{ env.NO_FAIL }}" \
+            -e SKIP_EXISTING="${{ env.SKIP_EXISTING }}" \
             almalinux:9 tail -f /dev/null
 
       - name: Update system and install base dependencies
         run: |
-          docker exec build-nginx-container bash -c "
-            echo 'deltarpm=True' >> /etc/dnf/dnf.conf
-            echo 'keepcache=True' >> /etc/dnf/dnf.conf
-            echo 'fastestmirror=True' >> /etc/dnf/dnf.conf
-            echo 'max_parallel_downloads=10' >> /etc/dnf/dnf.conf
+          docker exec build-nginx-container bash -c '
+            # DNF 性能优化配置
+            printf "%s\n" "deltarpm=True" "keepcache=True" "fastestmirror=True" "max_parallel_downloads=10" >> /etc/dnf/dnf.conf
             dnf clean all
             dnf -y install dnf-plugins-core && dnf config-manager --set-enabled crb
             dnf -y install epel-release && dnf clean all
             dnf makecache && dnf -y update && dnf -y groupinstall "Development Tools"
-          "
-          docker exec build-nginx-container bash -c "
+          '
+          # 安装编译依赖（包含新特性所需包）
+          docker exec build-nginx-container bash -c '
             dnf -y install \
                 nano wget psmisc go automake gcc gcc-c++ kernel-devel git make cmake tar autoconf zlib \
                 zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre perl-core perl-FindBin pcre-devel \
                 perl-IPC-Cmd perl-Test-Simple perl-Text-Template libaio libaio-devel brotli-devel glibc-headers \
                 glibc-devel libbsd-devel libxcrypt-compat libtool binutils binutils-gold ninja-build libbpf-devel \
-                libunwind-devel pkgconf-pkg-config jemalloc jemalloc-devel
-          "
+                libunwind-devel pkgconf-pkg-config jemalloc jemalloc-devel \
+                liburing-devel numactl-devel lld llvm
+          '
 
-      - name: Install bazel dependencies
+      - name: Install bazelisk
         run: |
-          docker exec build-nginx-container bash -c "
-            curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 -o /usr/local/bin/bazel &&
+          docker exec build-nginx-container bash -c '
+            curl -L -o /usr/local/bin/bazel \
+              --connect-timeout 10 --retry 2 \
+              "https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64" &&
             chmod +x /usr/local/bin/bazel && bazel --version
-          "
+          '
 
-      - name: Clone OpenSSL repository
+      # ============================================================================
+      # 阶段：并行克隆所有源码（构建速度优化）
+      # ============================================================================
+      - name: Parallel clone all repositories
         run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf openssl &&
-            git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl
-          "
-
-      - name: Clone and build libmaxminddb
-        run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf libmaxminddb &&
-            git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
-            cd libmaxminddb && ./bootstrap && ./configure &&
-            make -j$(nproc) && make install
-          "
-
-      - name: Clone ngx_brotli module
-        run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_brotli &&
-            git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &&
+          docker exec build-nginx-container bash -c '
+            cd "${{ env.NGINX_SRC_DIR }}"
+            # 清理旧目录
+            rm -rf openssl libmaxminddb ngx_brotli zstd ngx_zstd pcre2 ngx_http_geoip2_module
+            # 并行克隆所有仓库
+            (
+              git clone --depth 1 --branch "${{ env.OPENSSL_VERSION }}" \
+                https://github.com/openssl/openssl.git openssl &
+              git clone --depth 1 --recurse-submodules \
+                https://github.com/maxmind/libmaxminddb.git libmaxminddb &
+              git clone --depth 1 --recurse-submodules \
+                https://github.com/google/ngx_brotli.git ngx_brotli &
+              git clone --depth 1 \
+                https://github.com/facebook/zstd.git zstd &
+              git clone --depth 1 --recurse-submodules \
+                https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd &
+              git clone --depth 1 --recurse-submodules \
+                https://github.com/PCRE2Project/pcre2.git pcre2 &
+              git clone --depth 1 --recurse-submodules \
+                https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module &
+              wait
+            )
+            # 初始化 ngx_brotli 子模块
             cd ngx_brotli && git submodule update --init
-          "
+          '
 
-      - name: Clone and build zstd
+      # ============================================================================
+      # 阶段：并行构建依赖库（构建速度优化）
+      # ============================================================================
+      - name: Parallel build dependencies
         run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf zstd &&
-            git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
-            cd zstd && make -j$(nproc) && make install
-          "
+          docker exec build-nginx-container bash -c '
+            cd "${{ env.NGINX_SRC_DIR }}"
+            # 并行构建三个依赖库
+            (
+              cd libmaxminddb && ./bootstrap && ./configure && make -j$(nproc) && make install &
+              cd zstd && make -j$(nproc) && make install &
+              cd pcre2 && ./autogen.sh && ./configure && make -j$(nproc) && make install &
+              wait
+            )
+            # 更新动态链接器缓存
+            ldconfig
+          '
 
-      - name: Clone ngx_zstd module
-        run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_zstd &&
-            git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
-          "
-
-      - name: Clone and build PCRE2
-        run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf pcre2 &&
-            git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
-            cd pcre2 && ./autogen.sh && ./configure && make -j$(nproc) && make install
-          "
-
-      - name: Clone ngx_http_geoip2_module
-        run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_http_geoip2_module &&
-            git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
-          "
-
-      - name: Sync Geoip2 File
+      # ============================================================================
+      # 阶段：同步 GeoIP2 数据库
+      # ============================================================================
+      - name: Sync GeoIP2 databases
         if: ${{ env.ENABLE_GEOIP2 == 'yes' }}
         run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }}/geoip && chmod +x geoip2_sync.sh && ./geoip2_sync.sh &&
-            rm -rf ${{ env.NGINX_SRC_DIR }}/modules && mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && 
-            mv ${{ env.NGINX_SRC_DIR }}/geoip/*.mmdb ${{ env.NGINX_SRC_DIR }}/modules
-          "
+          docker exec build-nginx-container bash -c '
+            cd "${{ env.NGINX_SRC_DIR }}/geoip" && 
+            chmod +x geoip2_sync.sh &&
+            # 执行下载，失败不阻塞流水线（NO_FAIL=true）
+            ./geoip2_sync.sh || echo "GeoIP2 download incomplete, continuing..."
+            # 移动下载的数据库文件到模块目录
+            mkdir -p "${{ env.NGINX_SRC_DIR }}/modules"
+            if ls "${{ env.NGINX_SRC_DIR }}/geoip/"*.mmdb 1>/dev/null 2>&1; then
+              mv "${{ env.NGINX_SRC_DIR }}/geoip/"*.mmdb "${{ env.NGINX_SRC_DIR }}/modules/"
+            fi
+          '
 
-      - name: Download and extract Nginx source
+      - name: Download Nginx source
         run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }} &&
-            curl -L -o "nginx-${{ env.NGINX_VERSION }}.tar.gz" "https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz" &&
-            tar -zxvf nginx-${{ env.NGINX_VERSION }}.tar.gz && rm -rf nginx-${{ env.NGINX_VERSION }}.tar.gz
-          "
+          docker exec build-nginx-container bash -c '
+            cd "${{ env.NGINX_SRC_DIR }}"
+            rm -rf "nginx-${{ env.NGINX_VERSION }}" "nginx-${{ env.NGINX_VERSION }}.tar.gz"
+            # 使用 HTTP/2 多路复用加速下载
+            curl -L -o "nginx-${{ env.NGINX_VERSION }}.tar.gz" \
+              --http2 --tcp-fastopen --retry 3 \
+              "https://nginx.org/download/nginx-${{ env.NGINX_VERSION }}.tar.gz"
+            tar -zxf "nginx-${{ env.NGINX_VERSION }}.tar.gz"
+            rm -f "nginx-${{ env.NGINX_VERSION }}.tar.gz"
+          '
 
+      # ============================================================================
+      # 阶段：配置 Nginx
+      # ============================================================================
       - name: Configure Nginx
         run: |
-          docker exec build-nginx-container bash -c "
-            ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }}
+          docker exec build-nginx-container bash -c '
+            cd "${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }}"
+            ldconfig
+          
+            # ================================================================
             # 架构特定优化映射
-            case '${{ env.TARGET_ARCH }}' in
+            # x86-64-v2: 较老服务器支持（CMOV, CX8, FXSR, MMX, SSE, SSE2）
+            # x86-64-v3: AVX2 支持（Haswell+，2013年后）
+            # x86-64-v4: AVX-512 支持（Skylake-X+，2017年后）
+            # native: 使用构建机原生指令集
+            # ================================================================
+            case "${{ env.TARGET_ARCH }}" in
               x86-64-v2)
-                TUNE_FLAGS='-mtune=generic'
+                ARCH_FLAGS="-march=x86-64-v2 -mtune=generic"
                 ;;
               x86-64-v3)
-                TUNE_FLAGS='-mtune=haswell'  # 或 generic，但haswell更优
+                ARCH_FLAGS="-march=x86-64-v3 -mtune=haswell"
                 ;;
               x86-64-v4)
-                TUNE_FLAGS='-mtune=sapphirerapids'  # 或 znver4 for AMD
+                ARCH_FLAGS="-march=x86-64-v4 -mtune=sapphirerapids"
                 ;;
               native)
-                TUNE_FLAGS='-mtune=native'
+                ARCH_FLAGS="-march=native -mtune=native"
                 ;;
               *)
-                echo 'Unknown architecture: ${{ env.TARGET_ARCH }}' && exit 1
+                echo "Unknown architecture: ${{ env.TARGET_ARCH }}" >&2
+                exit 1
                 ;;
             esac
-            # 配置 nginx 构建参数
-            ./configure --prefix=${{ env.PREFIX }} \
+          
+            echo "Building with architecture flags: ${ARCH_FLAGS}"
+          
+            # ================================================================
+            # 编译优化参数（新特性 + 高性能 + 低损耗）
+            # ================================================================
+          
+            # C 编译器优化参数
+            CC_OPT="-O3 ${ARCH_FLAGS} \
+                -funroll-loops -fpeel-loops -ftracer \
+                -fstack-protector-strong \
+                -fomit-frame-pointer \
+                -finline-functions \
+                -fno-strict-aliasing \
+                -ffunction-sections -fdata-sections \
+                -pipe \
+                -flto=thin \
+                -fuse-ld=lld \
+                -static-libgcc -static-libstdc++ \
+                -D_FORTIFY_SOURCE=3 \
+                -DTCP_FASTOPEN=23 \
+                -DNGX_QUIC_DISABLE_MIGRATION=0 \
+                -DNGX_QUIC_BPF=1 \
+                -DNGX_HTTP_CACHE=1 \
+                -DNGX_PCRE2=1 \
+                -DNGX_HAVE_EVENTFD=1 \
+                -DNGX_HAVE_EPOLL=1 \
+                -DNGX_HAVE_REUSEPORT=1 \
+                -DNGX_HAVE_SO_KEEPALIVE=1 \
+                -DNGX_HAVE_TCP_FASTOPEN=1 \
+                -DNGX_HAVE_TCP_INFO=1 \
+                -DNGX_THREADS=1 \
+                -DNGX_HAVE_ATOMIC=1 \
+                -DNGX_HAVE_SECURE_RENAME=1 \
+                -fstack-clash-protection \
+                -fcf-protection \
+                -ftrivial-auto-var-init=zero"
+          
+            # 链接器优化参数
+            LD_OPT="-ljemalloc -luring -laio -lcrypt -lnuma \
+                -Wl,-z,relro,-z,now \
+                -flto=thin \
+                -fuse-ld=lld \
+                -Wl,--as-needed \
+                -Wl,--gc-sections \
+                -Wl,-O2"
+          
+            # OpenSSL 编译优化参数（新特性启用）
+            OPENSSL_OPT="-O3 ${ARCH_FLAGS} \
+                -funroll-loops -fpeel-loops -ftracer \
+                -fomit-frame-pointer -finline-functions \
+                -ffunction-sections -fdata-sections \
+                -pipe \
+                -flto=thin \
+                -fuse-ld=lld \
+                -static-libgcc -static-libstdc++ \
+                -DOPENSSL_USE_NODELETE \
+                -DOPENSSL_TLS_SECURITY_LEVEL=3 \
+                -D_FORTIFY_SOURCE=3 \
+                enable-asm \
+                enable-aesni \
+                enable-avx2 \
+                enable-kyber \
+                enable-ktls \
+                enable-pqc \
+                enable-early-data \
+                no-tls1 \
+                no-tls1_1 \
+                no-legacy \
+                no-weak-ssl-ciphers \
+                no-tls-deprecated-ec"
+          
+            # 执行配置（变量直接展开，避免转义问题）
+            ./configure --prefix="${{ env.PREFIX }}" \
                 --with-compat \
                 --with-threads \
                 --with-file-aio \
@@ -208,96 +310,116 @@ jobs:
                 --add-module=../ngx_brotli \
                 --with-openssl=../openssl \
                 --add-dynamic-module=../ngx_http_geoip2_module \
-                --with-ld-opt='-ljemalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2' \
-                --with-openssl-opt='-O3 -march=${{ env.TARGET_ARCH }} -funroll-loops -fpeel-loops -ftracer -fomit-frame-pointer -finline-functions -ffunction-sections -fdata-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3 -D_FORTIFY_SOURCE=3 enable-asm enable-aesni enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers no-tls-deprecated-ec' \
-                --with-cc-opt='-O3 -march=${{ env.TARGET_ARCH }} \${TUNE_FLAGS} -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -pipe -Wl,--gc-sections -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1 -fstack-clash-protection -fcf-protection -ftrivial-auto-var-init=zero'
-          "
+                --with-ld-opt="${LD_OPT}" \
+                --with-openssl-opt="${OPENSSL_OPT}" \
+                --with-cc-opt="${CC_OPT}"
+          '
 
       - name: Build Nginx
         run: |
-          docker exec build-nginx-container bash -c "
-            ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
-            make -j$(nproc) &&
-            objs/nginx -V &> ${{ env.NGINX_SRC_DIR }}/nginx_build_info.txt &&
-            mv objs/nginx ${{ env.NGINX_SRC_DIR }}/ &&
-            mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
-          "
+          docker exec build-nginx-container bash -c '
+            cd "${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }}"
+            ldconfig
+            # 并行编译（使用所有 CPU 核心）
+            make -j$(nproc)
+            # 保存构建信息
+            objs/nginx -V &> "${{ env.NGINX_SRC_DIR }}/nginx_build_info.txt"
+            # 移动构建产物
+            mv objs/nginx "${{ env.NGINX_SRC_DIR }}/"
+            mkdir -p "${{ env.NGINX_SRC_DIR }}/modules"
+            mv objs/ngx_http_geoip2_module.so "${{ env.NGINX_SRC_DIR }}/modules/"
+          '
 
-      - name: Bundle shared libraries and fix RPATH
+      - name: Bundle shared libraries
         run: |
           docker exec build-nginx-container bash -c '
-            ldconfig && rm -rf ${{ env.NGINX_SRC_DIR }}/libs && mkdir -p ${{ env.NGINX_SRC_DIR }}/libs  
-            # 使用关联数组存储已复制的库文件（基于inode）
+            ldconfig
+            rm -rf "${{ env.NGINX_SRC_DIR }}/libs"
+            mkdir -p "${{ env.NGINX_SRC_DIR }}/libs"
+            # 使用关联数组去重（基于 inode）
             declare -A copied_libs
-            # 获取并处理ldd输出
-            ldd ${{ env.NGINX_SRC_DIR }}/nginx | 
-              awk '\''NF >= 3 && $2 == "=>" && $3 ~ /^\// {print $3}'\'' |
+            ldd "${{ env.NGINX_SRC_DIR }}/nginx" | 
+              awk "NF >= 3 && \$2 == \"=>\" && \$3 ~ /^\// {print \$3}" |
               while read -r LIB; do
-                # 跳过无效路径
-                if [ -z "$LIB" ] || [ ! -e "$LIB" ]; then
-                  continue
-                fi
-                # 解析到最终的真实文件（递归解析符号链接）
+                [[ -z "$LIB" || ! -e "$LIB" ]] && continue
                 REAL_LIB=$(readlink -f "$LIB")
-                if [ -z "$REAL_LIB" ] || [ ! -f "$REAL_LIB" ]; then
-                  continue
-                fi
-                # 获取inode标识（避免重复复制）
+                [[ -z "$REAL_LIB" || ! -f "$REAL_LIB" ]] && continue
                 INODE=$(stat -c "%i" "$REAL_LIB")
                 # 排除核心系统库
-                if [[ "$REAL_LIB" == /lib64/ld-linux* ]] || \
-                   [[ "$REAL_LIB" == */libc.so* ]] || \
-                   [[ "$REAL_LIB" == */libm.so* ]] || \
-                   [[ "$REAL_LIB" == */libpthread.so* ]] || \
-                   [[ "$REAL_LIB" == */libdl.so* ]] || \
-                   [[ "$REAL_LIB" == */libgcc_s.so* ]]; then
-                  continue
-                fi
-                # 检查是否已复制过相同inode的文件
+                [[ "$REAL_LIB" == /lib64/ld-linux* ]] && continue
+                [[ "$REAL_LIB" == */libc.so* ]] && continue
+                [[ "$REAL_LIB" == */libm.so* ]] && continue
+                [[ "$REAL_LIB" == */libpthread.so* ]] && continue
+                [[ "$REAL_LIB" == */libdl.so* ]] && continue
+                [[ "$REAL_LIB" == */libgcc_s.so* ]] && continue
+                # 避免重复复制
                 if [[ ! -v copied_libs["$INODE"] ]]; then
-                  echo "Copying library: $(basename "$REAL_LIB")"
-                  cp -v "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
+                  echo "Copying: $(basename "$REAL_LIB")"
+                  cp -f "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
                   copied_libs["$INODE"]=1
                 fi
               done
           '
 
-      - name: Validate Architecture Target
+      - name: Validate and report
         run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} &&
-            echo '=== Target Architecture: ${{ env.TARGET_ARCH }} ===' &&
-            # 检查二进制文件使用的指令集
+          docker exec build-nginx-container bash -c '
+            cd "${{ env.NGINX_SRC_DIR }}"
+            echo "========================================"
+            echo "Architecture: ${{ env.TARGET_ARCH }}"
+            echo "========================================"
+            # ELF 信息
             if command -v readelf >/dev/null; then
-              echo '=== ELF Header ===' &&
-              readelf -h ./nginx | grep 'Machine\|Class' &&
-              
-              echo '=== Checking for AVX2 (x86-64-v3) ===' &&
-              if objdump -d ./nginx | grep -q 'ymm'; then
-                echo '✓ AVX2 (256-bit) instructions detected'
+              echo "--- ELF Header ---"
+              readelf -h ./nginx | grep -E "Machine|Class|OS/ABI"
+            fi
+            # 指令集检测
+            if command -v objdump >/dev/null; then
+              echo "--- Instruction Set Check ---"
+              # AVX2 检测
+              if objdump -d ./nginx | grep -q "ymm"; then
+                echo "✓ AVX2 (256-bit) instructions detected"
               else
-                echo '✗ No AVX2 instructions found'
-              fi &&
-              
-              echo '=== Checking for AVX-512 (x86-64-v4) ===' &&
-              if objdump -d ./nginx | grep -q 'zmm'; then
-                echo '✓ AVX-512 (512-bit) instructions detected'
-              else
-                echo '✗ No AVX-512 instructions found'
+                echo "✗ No AVX2 instructions"
               fi
-            fi &&
-            # 生成构建报告
-            echo '=== Build Report ===' > ${{ env.NGINX_SRC_DIR }}/build_report.txt &&
-            echo 'Nginx: ${{ env.NGINX_VERSION }}' >> ${{ env.NGINX_SRC_DIR }}/build_report.txt &&
-            echo 'OpenSSL: ${{ env.OPENSSL_VERSION }}' >> ${{ env.NGINX_SRC_DIR }}/build_report.txt &&
-            echo 'Target Arch: ${{ env.TARGET_ARCH }}' >> ${{ env.NGINX_SRC_DIR }}/build_report.txt &&
-            echo 'Build Date: $(date -Iseconds)' >> ${{ env.NGINX_SRC_DIR }}/build_report.txt
-          "
-      
-      - name: Upload Nginx binary and build information to repository
+              # AVX-512 检测
+              if objdump -d ./nginx | grep -q "zmm"; then
+                echo "✓ AVX-512 (512-bit) instructions detected"
+              else
+                echo "✗ No AVX-512 instructions"
+              fi
+            fi
+            # 文件大小
+            echo "--- Binary Size ---"
+            du -h ./nginx
+          '
+
+      # 生成构建报告
+      - name: Generate build report
+        run: |
+          REPORT_FILE="${{ github.workspace }}/build_report.txt"
+          echo "========================================" > "$REPORT_FILE"
+          echo "Nginx Build Report" >> "$REPORT_FILE"
+          echo "========================================" >> "$REPORT_FILE"
+          echo "Version:     ${{ env.NGINX_VERSION }}" >> "$REPORT_FILE"
+          echo "OpenSSL:     ${{ env.OPENSSL_VERSION }}" >> "$REPORT_FILE"
+          echo "Target Arch: ${{ env.TARGET_ARCH }}" >> "$REPORT_FILE"
+          echo "Build Date:  $(date -Iseconds)" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          echo "Build Info:" >> "$REPORT_FILE"
+          cat "${{ github.workspace }}/nginx_build_info.txt" 2>/dev/null >> "$REPORT_FILE" || echo "N/A" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          echo "Libraries:" >> "$REPORT_FILE"
+          ls -la "${{ github.workspace }}/libs/" 2>/dev/null >> "$REPORT_FILE" || echo "No external libraries" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          echo "Modules:" >> "$REPORT_FILE"
+          ls -la "${{ github.workspace }}/modules/" 2>/dev/null >> "$REPORT_FILE" || echo "No modules" >> "$REPORT_FILE"
+          echo "========================================" >> "$REPORT_FILE"
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: nginx-linux64-${{ env.NGINX_VERSION }}
+          name: nginx-linux64-${{ env.NGINX_VERSION }}-${{ env.TARGET_ARCH }}
           path: |
             ${{ github.workspace }}/nginx
             ${{ github.workspace }}/libs/**
@@ -306,5 +428,4 @@ jobs:
             ${{ github.workspace }}/nginx_build_info.txt
           retention-days: 2
           compression-level: 9
-          if-no-files-found: ignore
-        continue-on-error: true
+          if-no-files-found: error
