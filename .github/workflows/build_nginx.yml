@@ -161,26 +161,8 @@ jobs:
 
       - name: Configure Nginx
         run: |
-          docker exec build-nginx-container bash -c "
-            ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }}
-            # 架构特定优化映射
-            case '${{ env.TARGET_ARCH }}' in
-              x86-64-v2)
-                TUNE_FLAGS='-mtune=generic'
-                ;;
-              x86-64-v3)
-                TUNE_FLAGS='-mtune=haswell'
-                ;;
-              x86-64-v4)
-                TUNE_FLAGS='-mtune=sapphirerapids'
-                ;;
-              native)
-                TUNE_FLAGS='-mtune=native'
-                ;;
-              *)
-                echo 'Unknown architecture: ${{ env.TARGET_ARCH }}' && exit 1
-                ;;
-            esac
+          docker exec build-nginx-container bash -c '
+            ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
             ./configure --prefix=${{ env.PREFIX }} \
                 --with-compat \
                 --with-threads \
@@ -207,10 +189,10 @@ jobs:
                 --add-module=../ngx_brotli \
                 --with-openssl=../openssl \
                 --add-dynamic-module=../ngx_http_geoip2_module \
-                --with-ld-opt=\"-ljemalloc -laio -lcrypt -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2\" \
-                --with-openssl-opt=\"-O3 -march=${{ env.TARGET_ARCH }} \${TUNE_FLAGS} enable-ktls enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3\" \
-                --with-cc-opt=\"-O3 -march=${{ env.TARGET_ARCH }} \${TUNE_FLAGS} -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -pipe -flto=thin -fuse-ld=lld -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1\"
-          "
+                --with-ld-opt="-ljemalloc -laio -lcrypt -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2" \
+                --with-openssl-opt="-O3 -march=${{ env.TARGET_ARCH }} enable-ktls enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3" \
+                --with-cc-opt="-O3 -march=${{ env.TARGET_ARCH }} -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -pipe -flto=thin -fuse-ld=lld -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1"
+          '
 
       - name: Build Nginx
         run: |
