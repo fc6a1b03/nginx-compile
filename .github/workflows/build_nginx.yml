@@ -78,8 +78,7 @@ jobs:
                 zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre perl-core perl-FindBin pcre-devel \
                 perl-IPC-Cmd perl-Test-Simple perl-Text-Template libaio libaio-devel brotli-devel glibc-headers \
                 glibc-devel libbsd-devel libxcrypt-compat libtool binutils binutils-gold ninja-build libbpf-devel \
-                libunwind-devel pkgconf-pkg-config jemalloc jemalloc-devel \
-                liburing-devel numactl-devel lld
+                libunwind-devel pkgconf-pkg-config jemalloc jemalloc-devel
           "
 
       - name: Install bazel dependencies
@@ -208,7 +207,7 @@ jobs:
                 --add-module=../ngx_brotli \
                 --with-openssl=../openssl \
                 --add-dynamic-module=../ngx_http_geoip2_module \
-                --with-ld-opt=\"-ljemalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2\" \
+                --with-ld-opt=\"-ljemalloc -laio -lcrypt -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2\" \
                 --with-openssl-opt=\"-O3 -march=${{ env.TARGET_ARCH }} \${TUNE_FLAGS} enable-ktls enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3\" \
                 --with-cc-opt=\"-O3 -march=${{ env.TARGET_ARCH }} \${TUNE_FLAGS} -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -pipe -flto=thin -fuse-ld=lld -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1\"
           "
