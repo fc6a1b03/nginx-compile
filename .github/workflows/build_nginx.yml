@@ -21,11 +21,11 @@ on:
       enable_geoip2:
         type: choice
         required: true
-        default: "no"
+        default: "false"
         description: 'Enable Geoip2 Download'
         options:
-          - yes
-          - no
+          - "true"
+          - "false"
 
 jobs:
   build-nginx:
@@ -37,11 +37,12 @@ jobs:
       NGINX_VERSION: ${{ github.event.inputs.nginx_version }}
       OPENSSL_VERSION: ${{ github.event.inputs.openssl_version }}
 
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Pull Docker image for chosen system and Start Docker container
+      - name: Pull Docker image and Start container
         run: |
           sudo apt-get -qq -y install docker-ce
           sudo docker pull -q almalinux:9
@@ -67,7 +68,7 @@ jobs:
                 zlib-devel openssl openssl-devel bzip2 bzip2-devel pcre perl-core perl-FindBin pcre-devel \
                 perl-IPC-Cmd perl-Test-Simple perl-Text-Template libaio libaio-devel brotli-devel glibc-headers \
                 glibc-devel libbsd-devel libxcrypt-compat libtool binutils binutils-gold ninja-build libbpf-devel \
-                libunwind-devel pkgconf-pkg-config jemalloc jemalloc-devel
+                libunwind-devel pkgconf-pkg-config jemalloc jemalloc-devel liburing-devel clang lld
           "
 
       - name: Install bazel dependencies
@@ -84,60 +85,64 @@ jobs:
             git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl
           "
 
-      - name: Clone and build libmaxminddb
+      - name: Clone and build dependencies in parallel
         run: |
           docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf libmaxminddb &&
-            git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
-            cd libmaxminddb && ./bootstrap && ./configure &&
+            cd ${{ env.NGINX_SRC_DIR }}
+            # Remove old directories
+            rm -rf libmaxminddb zstd pcre2 ngx_brotli ngx_zstd ngx_http_geoip2_module
+            # Clone all repositories in parallel
+            git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &
+            git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &
+            git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &
+            git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &
+            git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd &
+            git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module &
+            wait
+            echo 'All repositories cloned successfully'
+          "
+
+      - name: Build libmaxminddb
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }}/libmaxminddb && 
+            ./bootstrap && ./configure --enable-shared --disable-static --with-pic &&
             make -j\$(nproc) && make install
           "
 
-      - name: Clone ngx_brotli module
+      - name: Build zstd
         run: |
           docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_brotli &&
-            git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &&
-            cd ngx_brotli && git submodule update --init
+            cd ${{ env.NGINX_SRC_DIR }}/zstd && 
+            make -j\$(nproc) && make install
           "
 
-      - name: Clone and build zstd
+      - name: Build PCRE2
         run: |
           docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf zstd &&
-            git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
-            cd zstd && make -j\$(nproc) && make install
+            cd ${{ env.NGINX_SRC_DIR }}/pcre2 && 
+            ./autogen.sh && ./configure --enable-jit --enable-pcre2-16 --enable-pcre2-32 --with-pic &&
+            make -j\$(nproc) && make install
           "
 
-      - name: Clone ngx_zstd module
+      - name: Update ngx_brotli submodules
         run: |
           docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_zstd &&
-            git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
-          "
-
-      - name: Clone and build PCRE2
-        run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf pcre2 &&
-            git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
-            cd pcre2 && ./autogen.sh && ./configure && make -j\$(nproc) && make install
-          "
-
-      - name: Clone ngx_http_geoip2_module
-        run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_http_geoip2_module &&
-            git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
+            cd ${{ env.NGINX_SRC_DIR }}/ngx_brotli && git submodule update --init
           "
 
       - name: Sync Geoip2 File
-        if: ${{ env.ENABLE_GEOIP2 == 'yes' }}
+        if: ${{ env.ENABLE_GEOIP2 }}
         run: |
           docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }}/geoip && chmod +x geoip2_sync.sh && ./geoip2_sync.sh || true &&
-            mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && 
-            mv ${{ env.NGINX_SRC_DIR }}/geoip/*.mmdb ${{ env.NGINX_SRC_DIR }}/modules/ 2>/dev/null || true
+            export GEOIP2_DIR='${{ env.NGINX_SRC_DIR }}/geoip'
+            export MODULES_DIR='${{ env.NGINX_SRC_DIR }}/modules'
+            cd \$GEOIP2_DIR && chmod +x geoip2_sync.sh && ./geoip2_sync.sh || true
+            # Create modules directory and move .mmdb files
+            mkdir -p \$MODULES_DIR
+            find \$GEOIP2_DIR -name '*.mmdb' -type f -exec cp -f {} \$MODULES_DIR/ \; 2>/dev/null || true
+            echo 'GeoIP2 database files:'
+            ls -la \$MODULES_DIR/*.mmdb 2>/dev/null || echo 'No .mmdb files found'
           "
 
       - name: Download and extract Nginx source
@@ -178,9 +183,9 @@ jobs:
                 --add-module=../ngx_brotli \
                 --with-openssl=../openssl \
                 --add-dynamic-module=../ngx_http_geoip2_module \
-                --with-ld-opt="-ljemalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2" \
-                --with-openssl-opt='-O3 -march=native enable-ec_nistp_64_gcc_128 enable-asm enable-aesni enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3' \
-                --with-cc-opt='-O3 -march=native -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -fprofile-use -pipe -Wl,--gc-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1'
+                --with-ld-opt="-ljemalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2 -Wl,--no-as-needed -Wl,--strip-all" \
+                --with-openssl-opt='-O3 -march=native enable-ec_nistp_64_gcc_128 enable-asm enable-aesni enable-avx2 enable-kyber enable-ktls enable-pqc enable-early-data enable-fips enable-threads enable-devcryptoeng no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3' \
+                --with-cc-opt='-O3 -march=native -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -pipe -Wl,--gc-sections -pipe -flto -fuse-ld=lld -fmodulo-sched -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1 -fvisibility=hidden -fno-semantic-interposition -ftree-vectorize -fstack-clash-protection'
           "
 
       - name: Build Nginx
@@ -191,6 +196,29 @@ jobs:
             objs/nginx -V &> ${{ env.NGINX_SRC_DIR }}/nginx_build_info.txt &&
             mv objs/nginx ${{ env.NGINX_SRC_DIR }}/ &&
             mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
+          "
+
+      - name: Generate build report
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} &&
+            echo '============================================' > build_report.txt &&
+            echo 'Nginx Build Report' >> build_report.txt &&
+            echo '============================================' >> build_report.txt &&
+            echo '' >> build_report.txt &&
+            echo 'Build Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)' >> build_report.txt &&
+            echo 'Nginx Version: ${{ env.NGINX_VERSION }}' >> build_report.txt &&
+            echo 'OpenSSL Version: ${{ env.OPENSSL_VERSION }}' >> build_report.txt &&
+            echo 'Target Architecture: native' >> build_report.txt &&
+            echo '' >> build_report.txt &&
+            echo '--- Nginx Configuration ---' >> build_report.txt &&
+            cat nginx_build_info.txt >> build_report.txt &&
+            echo '' >> build_report.txt &&
+            echo '--- Binary Information ---' >> build_report.txt &&
+            ls -lh nginx >> build_report.txt &&
+            echo '' >> build_report.txt &&
+            echo '--- Module Files ---' >> build_report.txt &&
+            ls -lh modules/ >> build_report.txt 2>/dev/null || echo 'No modules' >> build_report.txt
           "
 
       - name: Bundle shared libraries and fix RPATH
@@ -221,15 +249,16 @@ jobs:
               done
           '
 
-      - name: Upload Nginx binary and build information to repository
+      - name: Upload Nginx binary and build information
         uses: actions/upload-artifact@v7
         with:
-          name: nginx-linux64-${{ env.NGINX_VERSION }}
+          name: nginx-linux64-${{ env.NGINX_VERSION }}-native
           path: |
             ${{ github.workspace }}/nginx
             ${{ github.workspace }}/libs/**
             ${{ github.workspace }}/modules/**
             ${{ github.workspace }}/nginx_build_info.txt
+            ${{ github.workspace }}/build_report.txt
           retention-days: 2
           compression-level: 9
           if-no-files-found: ignore
