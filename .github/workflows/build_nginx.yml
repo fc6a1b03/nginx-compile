@@ -132,7 +132,7 @@ jobs:
           "
 
       - name: Sync Geoip2 File
-        if: ${{ env.ENABLE_GEOIP2 }}
+        if: ${{ env.ENABLE_GEOIP2 == 'true' }}
         run: |
           docker exec build-nginx-container bash -c "
             export GEOIP2_DIR='${{ env.NGINX_SRC_DIR }}/geoip'
