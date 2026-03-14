@@ -186,17 +186,14 @@ jobs:
             echo "=== Checking installed libraries ==="
             ldconfig
             ldconfig -p | grep -E "(jemalloc|uring|numa)" || true
-          
             echo "=== Library files ==="
             ls -la /usr/lib64/libjemalloc* 2>/dev/null || true
             ls -la /usr/lib64/liburing* 2>/dev/null || true
             ls -la /usr/lib64/libnuma* 2>/dev/null || true
-          
             echo "=== Linker test ==="
             echo "int main(){}" > /tmp/test.c
             gcc -flto=thin -fuse-ld=lld /tmp/test.c -o /tmp/test -ljemalloc -luring -lnuma 2>&1 || echo "Link test may have warnings"
             rm -f /tmp/test.c /tmp/test
-          
             # 导出库路径环境变量
             export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
           '
@@ -211,7 +208,6 @@ jobs:
             # 确保库路径正确
             export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
             ldconfig
-          
             # ================================================================
             # 架构特定优化映射
             # x86-64-v2: 较老服务器支持（CMOV, CX8, FXSR, MMX, SSE, SSE2）
@@ -237,14 +233,12 @@ jobs:
                 exit 1
                 ;;
             esac
-          
             echo "Building with architecture flags: ${ARCH_FLAGS}"
-          
             # ================================================================
             # 编译优化参数（新特性 + 高性能 + 低损耗）
             # ================================================================
-          
             # C 编译器优化参数
+            # 注意：未使用 -static-libgcc/-static-libstdc++ 以避免动态模块兼容性问题
             CC_OPT="-O3 ${ARCH_FLAGS} \
                 -funroll-loops -fpeel-loops -ftracer \
                 -fstack-protector-strong \
@@ -255,7 +249,6 @@ jobs:
                 -pipe \
                 -flto=thin \
                 -fuse-ld=lld \
-                -static-libgcc -static-libstdc++ \
                 -D_FORTIFY_SOURCE=3 \
                 -DTCP_FASTOPEN=23 \
                 -DNGX_QUIC_DISABLE_MIGRATION=0 \
@@ -274,16 +267,15 @@ jobs:
                 -fstack-clash-protection \
                 -fcf-protection \
                 -ftrivial-auto-var-init=zero"
-          
-            # 链接器优化参数（注意：-flto=thin 已在 CC_OPT 中，此处省略避免重复）
+            # 链接器优化参数
+            # 注意：-flto=thin 和 -fuse-ld=lld 已在 CC_OPT 中，此处省略避免重复
             LD_OPT="-ljemalloc -luring -laio -lcrypt -lnuma \
                 -Wl,-z,relro,-z,now \
-                -fuse-ld=lld \
                 -Wl,--as-needed \
                 -Wl,--gc-sections \
                 -Wl,-O2"
-          
             # OpenSSL 编译优化参数（新特性启用）
+            # 注意：OpenSSL 3.6+ 可能不支持所有 enable-xxx 选项，已注释不确定的选项
             OPENSSL_OPT="-O3 ${ARCH_FLAGS} \
                 -funroll-loops -fpeel-loops -ftracer \
                 -fomit-frame-pointer -finline-functions \
@@ -291,24 +283,17 @@ jobs:
                 -pipe \
                 -flto=thin \
                 -fuse-ld=lld \
-                -static-libgcc -static-libstdc++ \
                 -DOPENSSL_USE_NODELETE \
                 -DOPENSSL_TLS_SECURITY_LEVEL=3 \
                 -D_FORTIFY_SOURCE=3 \
                 enable-asm \
-                enable-aesni \
-                enable-avx2 \
-                enable-kyber \
                 enable-ktls \
-                enable-pqc \
                 enable-early-data \
                 no-tls1 \
                 no-tls1_1 \
                 no-legacy \
-                no-weak-ssl-ciphers \
-                no-tls-deprecated-ec"
-          
-            # 执行配置（变量直接展开，避免转义问题）
+                no-weak-ssl-ciphers"
+            # 执行配置
             ./configure --prefix="${{ env.PREFIX }}" \
                 --with-compat \
                 --with-threads \
@@ -361,29 +346,26 @@ jobs:
             ldconfig
             rm -rf "${{ env.NGINX_SRC_DIR }}/libs"
             mkdir -p "${{ env.NGINX_SRC_DIR }}/libs"
-            # 使用关联数组去重（基于 inode）
             declare -A copied_libs
-            ldd "${{ env.NGINX_SRC_DIR }}/nginx" | 
-              awk "NF >= 3 && \$2 == \"=>\" && \$3 ~ /^\// {print \$3}" |
-              while read -r LIB; do
-                [[ -z "$LIB" || ! -e "$LIB" ]] && continue
-                REAL_LIB=$(readlink -f "$LIB")
-                [[ -z "$REAL_LIB" || ! -f "$REAL_LIB" ]] && continue
-                INODE=$(stat -c "%i" "$REAL_LIB")
-                # 排除核心系统库
-                [[ "$REAL_LIB" == /lib64/ld-linux* ]] && continue
-                [[ "$REAL_LIB" == */libc.so* ]] && continue
-                [[ "$REAL_LIB" == */libm.so* ]] && continue
-                [[ "$REAL_LIB" == */libpthread.so* ]] && continue
-                [[ "$REAL_LIB" == */libdl.so* ]] && continue
-                [[ "$REAL_LIB" == */libgcc_s.so* ]] && continue
-                # 避免重复复制
-                if [[ ! -v copied_libs["$INODE"] ]]; then
-                  echo "Copying: $(basename "$REAL_LIB")"
-                  cp -f "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
-                  copied_libs["$INODE"]=1
-                fi
-              done
+            while read -r LIB; do
+              [[ -z "$LIB" || ! -e "$LIB" ]] && continue
+              REAL_LIB=$(readlink -f "$LIB")
+              [[ -z "$REAL_LIB" || ! -f "$REAL_LIB" ]] && continue
+              INODE=$(stat -c "%i" "$REAL_LIB")
+              # 排除核心系统库
+              [[ "$REAL_LIB" == /lib64/ld-linux* ]] && continue
+              [[ "$REAL_LIB" == */libc.so* ]] && continue
+              [[ "$REAL_LIB" == */libm.so* ]] && continue
+              [[ "$REAL_LIB" == */libpthread.so* ]] && continue
+              [[ "$REAL_LIB" == */libdl.so* ]] && continue
+              [[ "$REAL_LIB" == */libgcc_s.so* ]] && continue
+              # 避免重复复制
+              if [[ ! -v copied_libs["$INODE"] ]]; then
+                echo "Copying: $(basename "$REAL_LIB")"
+                cp -f "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
+                copied_libs["$INODE"]=1
+              fi
+            done < <(ldd "${{ env.NGINX_SRC_DIR }}/nginx" | awk "NF >= 3 && \$2 == \"=>\" && \$3 ~ /^\// {print \$3}")
           '
 
       - name: Validate and report
