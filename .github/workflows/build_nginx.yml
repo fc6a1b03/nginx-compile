@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Pull Docker image for chosen system and Start Docker container
         run: |
@@ -103,16 +103,6 @@ jobs:
             cd libmaxminddb && ./bootstrap && ./configure &&
             make -j$(nproc) && make install
           "
-
-      # - name: Clone and build tcmalloc_minimal
-      #   run: |
-      #     docker exec build-nginx-container bash -c "
-      #       cd ${{ env.NGINX_SRC_DIR }} && rm -rf gperftools &&
-      #       git clone --depth 1 --recurse-submodules https://github.com/gperftools/gperftools.git gperftools &&
-      #       cd gperftools && ./autogen.sh && ./configure --enable-minimal --disable-cpu-profiler --disable-heap-profiler --disable-heap-checker CXXFLAGS='-O3 -fPIC' &&
-      #       make -j$(nproc) && make install
-      #       ln -s /usr/local/lib/libtcmalloc_minimal.so.4 /usr/lib/libtcmalloc_minimal.so.4
-      #     "
 
       - name: Clone ngx_brotli module
         run: |
@@ -305,7 +295,7 @@ jobs:
           "
       
       - name: Upload Nginx binary and build information to repository
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nginx-linux64-${{ env.NGINX_VERSION }}
           path: |
