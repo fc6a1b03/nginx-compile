@@ -178,12 +178,38 @@ jobs:
           '
 
       # ============================================================================
+      # 阶段：验证依赖库
+      # ============================================================================
+      - name: Verify dependencies
+        run: |
+          docker exec build-nginx-container bash -c '
+            echo "=== Checking installed libraries ==="
+            ldconfig
+            ldconfig -p | grep -E "(jemalloc|uring|numa)" || true
+          
+            echo "=== Library files ==="
+            ls -la /usr/lib64/libjemalloc* 2>/dev/null || true
+            ls -la /usr/lib64/liburing* 2>/dev/null || true
+            ls -la /usr/lib64/libnuma* 2>/dev/null || true
+          
+            echo "=== Linker test ==="
+            echo "int main(){}" > /tmp/test.c
+            gcc -flto=thin -fuse-ld=lld /tmp/test.c -o /tmp/test -ljemalloc -luring -lnuma 2>&1 || echo "Link test may have warnings"
+            rm -f /tmp/test.c /tmp/test
+          
+            # 导出库路径环境变量
+            export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
+          '
+
+      # ============================================================================
       # 阶段：配置 Nginx
       # ============================================================================
       - name: Configure Nginx
         run: |
           docker exec build-nginx-container bash -c '
             cd "${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }}"
+            # 确保库路径正确
+            export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
             ldconfig
           
             # ================================================================
@@ -249,10 +275,9 @@ jobs:
                 -fcf-protection \
                 -ftrivial-auto-var-init=zero"
           
-            # 链接器优化参数
+            # 链接器优化参数（注意：-flto=thin 已在 CC_OPT 中，此处省略避免重复）
             LD_OPT="-ljemalloc -luring -laio -lcrypt -lnuma \
                 -Wl,-z,relro,-z,now \
-                -flto=thin \
                 -fuse-ld=lld \
                 -Wl,--as-needed \
                 -Wl,--gc-sections \
