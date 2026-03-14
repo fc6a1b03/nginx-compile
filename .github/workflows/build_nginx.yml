@@ -89,40 +89,58 @@ jobs:
             chmod +x /usr/local/bin/bazel && bazel --version
           "
 
-      # ============================================================================
-      # 阶段：并行克隆所有源码
-      # ============================================================================
-      - name: Clone all repositories
+      - name: Clone OpenSSL repository
         run: |
           docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }}
-            rm -rf openssl libmaxminddb ngx_brotli zstd ngx_zstd pcre2 ngx_http_geoip2_module
-            # 并行克隆所有仓库
-            git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl &
-            git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &
-            git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &
-            git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &
-            git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd &
-            git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &
-            git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module &
-            wait
-            # 初始化 ngx_brotli 子模块
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf openssl &&
+            git clone --depth 1 --branch ${{ env.OPENSSL_VERSION }} --recurse-submodules https://github.com/openssl/openssl.git openssl
+          "
+
+      - name: Clone and build libmaxminddb
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf libmaxminddb &&
+            git clone --depth 1 --recurse-submodules https://github.com/maxmind/libmaxminddb.git libmaxminddb &&
+            cd libmaxminddb && ./bootstrap && ./configure &&
+            make -j\$(nproc) && make install
+          "
+
+      - name: Clone ngx_brotli module
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_brotli &&
+            git clone --depth 1 --recurse-submodules https://github.com/google/ngx_brotli.git ngx_brotli &&
             cd ngx_brotli && git submodule update --init
           "
 
-      # ============================================================================
-      # 阶段：并行构建依赖库
-      # ============================================================================
-      - name: Build dependencies
+      - name: Clone and build zstd
         run: |
           docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }}
-            # 并行构建三个依赖库
-            (cd libmaxminddb && ./bootstrap && ./configure && make -j\$(nproc) && make install) &
-            (cd zstd && make -j\$(nproc) && make install) &
-            (cd pcre2 && ./autogen.sh && ./configure && make -j\$(nproc) && make install) &
-            wait
-            ldconfig
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf zstd &&
+            git clone --depth 1 --recurse-submodules https://github.com/facebook/zstd.git zstd &&
+            cd zstd && make -j\$(nproc) && make install
+          "
+
+      - name: Clone ngx_zstd module
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_zstd &&
+            git clone --depth 1 --recurse-submodules https://github.com/HanadaLee/ngx_http_zstd_module.git ngx_zstd
+          "
+
+      - name: Clone and build PCRE2
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf pcre2 &&
+            git clone --depth 1 --recurse-submodules https://github.com/PCRE2Project/pcre2.git pcre2 &&
+            cd pcre2 && ./autogen.sh && ./configure && make -j\$(nproc) && make install
+          "
+
+      - name: Clone ngx_http_geoip2_module
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} && rm -rf ngx_http_geoip2_module &&
+            git clone --depth 1 --recurse-submodules https://github.com/leev/ngx_http_geoip2_module.git ngx_http_geoip2_module
           "
 
       - name: Sync Geoip2 File
@@ -145,9 +163,8 @@ jobs:
       - name: Configure Nginx
         run: |
           docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }}
-            ldconfig
-            # 架构特定优化映射（使用原始版本的 TUNE_FLAGS 方式）
+            ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }}
+            # 架构特定优化映射
             case '${{ env.TARGET_ARCH }}' in
               x86-64-v2)
                 TUNE_FLAGS='-mtune=generic'
@@ -165,7 +182,6 @@ jobs:
                 echo 'Unknown architecture: ${{ env.TARGET_ARCH }}' && exit 1
                 ;;
             esac
-            echo 'Building with: ${{ env.TARGET_ARCH }}' \${TUNE_FLAGS}
             ./configure --prefix=${{ env.PREFIX }} \
                 --with-compat \
                 --with-threads \
@@ -193,7 +209,7 @@ jobs:
                 --with-openssl=../openssl \
                 --add-dynamic-module=../ngx_http_geoip2_module \
                 --with-ld-opt=\"-ljemalloc -luring -laio -lcrypt -lnuma -Wl,-z,relro,-z,now -flto=thin -fuse-ld=lld -Wl,--as-needed -Wl,--gc-sections -Wl,-O2\" \
-                --with-openssl-opt=\"-O3 -march=${{ env.TARGET_ARCH }} enable-ktls enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3\" \
+                --with-openssl-opt=\"-O3 -march=${{ env.TARGET_ARCH }} \${TUNE_FLAGS} enable-ktls enable-early-data no-tls1 no-tls1_1 no-legacy no-weak-ssl-ciphers -DOPENSSL_USE_NODELETE -DOPENSSL_TLS_SECURITY_LEVEL=3\" \
                 --with-cc-opt=\"-O3 -march=${{ env.TARGET_ARCH }} \${TUNE_FLAGS} -funroll-loops -fpeel-loops -ftracer -fstack-protector-strong -fomit-frame-pointer -finline-functions -fno-strict-aliasing -ffunction-sections -fdata-sections -pipe -flto=thin -fuse-ld=lld -static-libgcc -static-libstdc++ -D_FORTIFY_SOURCE=3 -DTCP_FASTOPEN=23 -DNGX_QUIC_DISABLE_MIGRATION=0 -DNGX_QUIC_BPF=1 -DNGX_HTTP_CACHE=1 -DNGX_PCRE2=1 -DNGX_HAVE_EVENTFD=1 -DNGX_HAVE_EPOLL=1 -DNGX_HAVE_REUSEPORT=1 -DNGX_HAVE_SO_KEEPALIVE=1 -DNGX_HAVE_TCP_FASTOPEN=1 -DNGX_HAVE_TCP_INFO=1 -DNGX_THREADS=1 -DNGX_HAVE_ATOMIC=1 -DNGX_HAVE_SECURE_RENAME=1\"
           "
 
@@ -201,7 +217,7 @@ jobs:
         run: |
           docker exec build-nginx-container bash -c "
             ldconfig && cd ${{ env.NGINX_SRC_DIR }}/nginx-${{ env.NGINX_VERSION }} &&
-            make -j$(nproc) &&
+            make -j\$(nproc) &&
             objs/nginx -V &> ${{ env.NGINX_SRC_DIR }}/nginx_build_info.txt &&
             mv objs/nginx ${{ env.NGINX_SRC_DIR }}/ &&
             mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
@@ -211,20 +227,14 @@ jobs:
         run: |
           docker exec build-nginx-container bash -c '
             ldconfig && rm -rf ${{ env.NGINX_SRC_DIR }}/libs && mkdir -p ${{ env.NGINX_SRC_DIR }}/libs  
-            # 使用关联数组存储已复制的库文件（基于inode）
             declare -A copied_libs
-            # 获取并处理ldd输出
             ldd ${{ env.NGINX_SRC_DIR }}/nginx | 
               awk "NF >= 3 && \$2 == \"=>\" && \$3 ~ /^\// {print \$3}" |
               while read -r LIB; do
-                # 跳过无效路径
                 [ -z "$LIB" ] || [ ! -e "$LIB" ] && continue
-                # 解析到最终的真实文件（递归解析符号链接）
                 REAL_LIB=$(readlink -f "$LIB")
                 [ -z "$REAL_LIB" ] || [ ! -f "$REAL_LIB" ] && continue
-                # 获取inode标识（避免重复复制）
                 INODE=$(stat -c "%i" "$REAL_LIB")
-                # 排除核心系统库
                 if [[ "$REAL_LIB" == /lib64/ld-linux* ]] || \
                    [[ "$REAL_LIB" == */libc.so* ]] || \
                    [[ "$REAL_LIB" == */libm.so* ]] || \
@@ -233,7 +243,6 @@ jobs:
                    [[ "$REAL_LIB" == */libgcc_s.so* ]]; then
                   continue
                 fi
-                # 检查是否已复制过相同inode的文件
                 if [[ ! -v copied_libs["$INODE"] ]]; then
                   echo "Copying: $(basename "$REAL_LIB")"
                   cp -f "$REAL_LIB" "${{ env.NGINX_SRC_DIR }}/libs/"
