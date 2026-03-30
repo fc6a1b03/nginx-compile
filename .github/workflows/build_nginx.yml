@@ -249,7 +249,7 @@ jobs:
             ls -lh modules/ >> build_report.txt 2>/dev/null || echo 'No modules' >> build_report.
             echo '' >> build_report.txt &&
             echo '--- Libraries Files ---' >> build_report.txt &&
-            ls -lh libraries/ >> build_report.txt 2>/dev/null || echo 'No Libraries' >> build_report.txt
+            ls -lh libs/ >> build_report.txt 2>/dev/null || echo 'No Libraries' >> build_report.txt
           "
 
       - name: Upload Nginx binary and build information
