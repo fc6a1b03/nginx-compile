@@ -198,29 +198,6 @@ jobs:
             mkdir -p ${{ env.NGINX_SRC_DIR }}/modules && mv objs/ngx_http_geoip2_module.so ${{ env.NGINX_SRC_DIR }}/modules
           "
 
-      - name: Generate build report
-        run: |
-          docker exec build-nginx-container bash -c "
-            cd ${{ env.NGINX_SRC_DIR }} &&
-            echo '============================================' > build_report.txt &&
-            echo 'Nginx Build Report' >> build_report.txt &&
-            echo '============================================' >> build_report.txt &&
-            echo '' >> build_report.txt &&
-            echo 'Build Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)' >> build_report.txt &&
-            echo 'Nginx Version: ${{ env.NGINX_VERSION }}' >> build_report.txt &&
-            echo 'OpenSSL Version: ${{ env.OPENSSL_VERSION }}' >> build_report.txt &&
-            echo 'Target Architecture: native' >> build_report.txt &&
-            echo '' >> build_report.txt &&
-            echo '--- Nginx Configuration ---' >> build_report.txt &&
-            cat nginx_build_info.txt >> build_report.txt &&
-            echo '' >> build_report.txt &&
-            echo '--- Binary Information ---' >> build_report.txt &&
-            ls -lh nginx >> build_report.txt &&
-            echo '' >> build_report.txt &&
-            echo '--- Module Files ---' >> build_report.txt &&
-            ls -lh modules/ >> build_report.txt 2>/dev/null || echo 'No modules' >> build_report.txt
-          "
-
       - name: Bundle shared libraries and fix RPATH
         run: |
           docker exec build-nginx-container bash -c '
@@ -248,6 +225,32 @@ jobs:
                 fi
               done
           '
+
+      - name: Generate build report
+        run: |
+          docker exec build-nginx-container bash -c "
+            cd ${{ env.NGINX_SRC_DIR }} &&
+            echo '============================================' > build_report.txt &&
+            echo 'Nginx Build Report' >> build_report.txt &&
+            echo '============================================' >> build_report.txt &&
+            echo '' >> build_report.txt &&
+            echo 'Build Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)' >> build_report.txt &&
+            echo 'Nginx Version: ${{ env.NGINX_VERSION }}' >> build_report.txt &&
+            echo 'OpenSSL Version: ${{ env.OPENSSL_VERSION }}' >> build_report.txt &&
+            echo 'Target Architecture: native' >> build_report.txt &&
+            echo '' >> build_report.txt &&
+            echo '--- Nginx Configuration ---' >> build_report.txt &&
+            cat nginx_build_info.txt >> build_report.txt &&
+            echo '' >> build_report.txt &&
+            echo '--- Binary Information ---' >> build_report.txt &&
+            ls -lh nginx >> build_report.txt &&
+            echo '' >> build_report.txt &&
+            echo '--- Module Files ---' >> build_report.txt &&
+            ls -lh modules/ >> build_report.txt 2>/dev/null || echo 'No modules' >> build_report.
+            echo '' >> build_report.txt &&
+            echo '--- Libraries Files ---' >> build_report.txt &&
+            ls -lh libraries/ >> build_report.txt 2>/dev/null || echo 'No Libraries' >> build_report.txt
+          "
 
       - name: Upload Nginx binary and build information
         uses: actions/upload-artifact@v7
