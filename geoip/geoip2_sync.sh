@@ -12,7 +12,7 @@ fi
 # GitHub源配置
 declare -A database_urls=(
   # ljxi 维护版本
-  [GeoCN]="https://github.com/ljxi/GeoCN/releases/download/Latest/GeoCN.mmdb"
+  [GeoCN]="https://github.com/ljxi/GeoCN/releases/latest/download/GeoCN.mmdb"
   # P3TERX 维护版本
   [GeoLite2-ASN]="https://git.io/GeoLite2-ASN.mmdb"
   [GeoLite2-City]="https://git.io/GeoLite2-City.mmdb"
